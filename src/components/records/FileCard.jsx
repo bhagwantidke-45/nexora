@@ -25,7 +25,7 @@ const FileCard = ({ record, onEdit, onDelete, onPin }) => {
 
       {/* URL */}
       {record.url && (
-        
+        <a
           href={record.url}
           target="_blank"
           rel="noopener noreferrer"
