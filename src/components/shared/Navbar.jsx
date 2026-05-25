@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   Zap,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import ThemeToggle from "./ThemeToggle";
@@ -36,7 +37,7 @@ const Navbar = () => {
       await logout();
       toast.success("Logged out successfully!");
       navigate("/login");
-    } catch (error) {
+    } catch {
       toast.error("Failed to logout!");
     }
   };
@@ -51,9 +52,7 @@ const Navbar = () => {
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center shadow-lg shadow-primary-500/25">
               <Zap size={16} className="text-white" />
             </div>
-            <span className="font-display font-bold text-xl text-gradient">
-              Nexora
-            </span>
+            <span className="font-display font-bold text-xl text-gradient">Nexora</span>
           </Link>
 
           {/* Nav Items - Desktop */}
@@ -82,15 +81,28 @@ const Navbar = () => {
           <div className="flex items-center gap-3">
             <ThemeToggle />
 
-            {/* User Avatar */}
-            <div className="hidden md:flex items-center gap-2">
+            {/* User Avatar → Profile */}
+            <Link
+              to="/profile"
+              className="hidden md:flex items-center gap-2 hover:opacity-80 transition-opacity"
+              title="Profile & Settings"
+            >
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
                 {user?.displayName?.charAt(0).toUpperCase() || "U"}
               </div>
               <span className="text-sm text-gray-300 hidden lg:block">
                 {user?.displayName || user?.email}
               </span>
-            </div>
+            </Link>
+
+            {/* Settings icon shortcut */}
+            <Link
+              to="/profile"
+              className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 transition-all duration-200"
+              title="Settings"
+            >
+              <Settings size={16} />
+            </Link>
 
             {/* Logout */}
             <button
@@ -139,6 +151,20 @@ const Navbar = () => {
                 </Link>
               );
             })}
+
+            {/* Profile link */}
+            <Link
+              to="/profile"
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 mb-1 ${
+                location.pathname === "/profile"
+                  ? "bg-primary-600/30 text-primary-300 border border-primary-500/30"
+                  : "text-gray-400 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              <Settings size={18} />
+              Profile & Settings
+            </Link>
 
             {/* Mobile User & Logout */}
             <div className="border-t border-white/10 mt-3 pt-3 flex items-center justify-between">
