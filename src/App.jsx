@@ -5,6 +5,11 @@ import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
 import ForgotPassword from "./components/auth/ForgotPassword";
 import Dashboard from "./components/dashboard/Dashboard";
+import TaskManager from "./components/tasks/TaskManager";
+import CalendarView from "./components/calendar/CalendarView";
+import Records from "./components/records/Records";
+import HabitTracker from "./components/habits/HabitTracker";
+import Statistics from "./components/stats/Statistics";
 import Loader from "./components/shared/Loader";
 
 const ProtectedRoute = ({ children }) => {
@@ -27,26 +32,33 @@ const App = () => {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={
-          <PublicRoute>
-            <Login />
-          </PublicRoute>
+          <PublicRoute><Login /></PublicRoute>
         } />
         <Route path="/register" element={
-          <PublicRoute>
-            <Register />
-          </PublicRoute>
+          <PublicRoute><Register /></PublicRoute>
         } />
         <Route path="/forgot-password" element={
-          <PublicRoute>
-            <ForgotPassword />
-          </PublicRoute>
+          <PublicRoute><ForgotPassword /></PublicRoute>
         } />
 
         {/* Protected Routes */}
         <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
+          <ProtectedRoute><Dashboard /></ProtectedRoute>
+        } />
+        <Route path="/tasks" element={
+          <ProtectedRoute><TaskManager /></ProtectedRoute>
+        } />
+        <Route path="/calendar" element={
+          <ProtectedRoute><CalendarView /></ProtectedRoute>
+        } />
+        <Route path="/records" element={
+          <ProtectedRoute><Records /></ProtectedRoute>
+        } />
+        <Route path="/habits" element={
+          <ProtectedRoute><HabitTracker /></ProtectedRoute>
+        } />
+        <Route path="/stats" element={
+          <ProtectedRoute><Statistics /></ProtectedRoute>
         } />
 
         {/* Default Redirect */}
