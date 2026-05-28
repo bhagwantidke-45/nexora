@@ -8,6 +8,8 @@ import Modal        from "../shared/Modal";
 import EmptyState   from "../shared/EmptyState";
 import { SkeletonList } from "../shared/PageTransition";
 import { useConfetti }  from "../shared/PageTransition";
+
+  import HabitHeatmap from "./HabitHeatmap";
 import {
   getHabitsRealtime, addHabit, deleteHabit, toggleHabitToday,
 } from "../../firebase/habits";
@@ -93,6 +95,9 @@ const HabitCard = ({ habit, completed, onToggle, onDelete, last7Days, today, ind
               );
             })}
           </div>
+          
+<HabitHeatmap completedDates={habit.completedDates || []} color={habit.color} />
+
         </div>
 
         {/* Delete */}
