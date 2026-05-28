@@ -1,6 +1,6 @@
-// AIAssistant.jsx — Fixed API call, streaming, theme-aware
+// AIAssistant.jsx — Uses Vite proxy to avoid CORS
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, Send, User, RotateCcw, Copy, Check, StopCircle, AlertCircle } from "lucide-react";
+import { Sparkles, Send, User, RotateCcw, Copy, Check, AlertCircle } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 import Navbar from "../shared/Navbar";
 
@@ -49,10 +49,10 @@ const TypingDots = () => (
   </div>
 );
 
-const Bubble = ({ msg, isStreaming }) => {
+const Bubble = ({ msg }) => {
   const [copied, setCopied] = useState(false);
   const isUser   = msg.role === "user";
-  const isTyping = msg.content === "…";
+  const isTyping = msg.content === "";
 
   const handleCopy = () => {
     navigator.clipboard.writeText(msg.content);
@@ -75,18 +75,16 @@ const Bubble = ({ msg, isStreaming }) => {
             background:`linear-gradient(135deg,rgba(var(--glow),0.25),rgba(var(--glow),0.15))`,
             border:`1px solid rgba(var(--glow),0.25)`, color:"#fff",
           } : { color:"#e5e7eb" }}>
-          {isTyping ? <TypingDots /> :
-            <div className="space-y-0.5">
-              {renderContent(msg.content)}
-              {isStreaming && <span className="inline-block w-1.5 h-3.5 bg-current opacity-70 animate-pulse ml-0.5 align-middle" />}
-            </div>
+          {isTyping
+            ? <TypingDots />
+            : <div className="space-y-0.5">{renderContent(msg.content)}</div>
           }
         </div>
         <div className={`flex items-center gap-2 ${isUser?"flex-row-reverse":""}`}>
           <span className="text-xs text-gray-600">
             {new Date(msg.timestamp).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
           </span>
-          {!isTyping && !isUser && !isStreaming && (
+          {!isTyping && !isUser && (
             <button onClick={handleCopy}
               className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg text-gray-600 hover:text-gray-300 hover:bg-white/5">
               {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
@@ -105,10 +103,9 @@ const AIAssistant = () => {
     content:"Hey there! 👋 I'm **Nexora AI**, your personal productivity assistant.\n\nHow can I help you today?",
     timestamp:Date.now(),
   }]);
-  const [input,     setInput]     = useState("");
-  const [loading,   setLoading]   = useState(false);
-  const [error,     setError]     = useState(null);
-  const [streaming, setStreaming] = useState(false);
+  const [input,   setInput]   = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState(null);
 
   const msgTimestamps = useRef([]);
   const abortRef      = useRef(null);
@@ -133,12 +130,6 @@ const AIAssistant = () => {
     }
   };
 
-  const stopGeneration = () => {
-    if (abortRef.current) abortRef.current.abort();
-    setLoading(false);
-    setStreaming(false);
-  };
-
   const send = async (text) => {
     const userMsg = (text || input).trim();
     if (!userMsg || loading) return;
@@ -154,8 +145,9 @@ const AIAssistant = () => {
     setMessages(updatedHistory);
     setLoading(true);
 
+    // Add typing placeholder
     const placeholderId = Date.now();
-    setMessages(m => [...m, { role:"assistant", content:"", timestamp:placeholderId, _streaming:true }]);
+    setMessages(m => [...m, { role:"assistant", content:"", timestamp:placeholderId }]);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -165,19 +157,18 @@ const AIAssistant = () => {
         .slice(-MAX_HISTORY)
         .map(({ role, content }) => ({ role, content }));
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
-        signal:controller.signal,
-        headers:{
-          "Content-Type":"application/json",
-          "anthropic-dangerous-direct-browser-calls":"true",
+      // Uses Vite proxy → /api/claude → https://api.anthropic.com
+      const response = await fetch("/api/claude/v1/messages", {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
         },
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:1024,
-          stream:true,
-          system:SYSTEM_PROMPT,
-          messages:historyForAPI,
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          system: SYSTEM_PROMPT,
+          messages: historyForAPI,
         }),
       });
 
@@ -186,51 +177,21 @@ const AIAssistant = () => {
         throw new Error(errData?.error?.message || `HTTP ${response.status}`);
       }
 
-      const reader  = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullText  = "";
-      setStreaming(true);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6);
-          if (data === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.type === "content_block_delta" && parsed.delta?.type === "text_delta") {
-              fullText += parsed.delta.text;
-              setMessages(m => m.map(msg =>
-                msg.timestamp === placeholderId ? { ...msg, content:fullText } : msg
-              ));
-            }
-          } catch { /* ignore malformed SSE */ }
-        }
-      }
+      const data  = await response.json();
+      const reply = data.content?.[0]?.text || "No response. Please try again.";
 
       setMessages(m => m.map(msg =>
         msg.timestamp === placeholderId
-          ? { ...msg, content:fullText || "I couldn't generate a response. Please try again.", _streaming:false }
+          ? { ...msg, content: reply }
           : msg
       ));
+
     } catch (err) {
-      if (err.name === "AbortError") {
-        setMessages(m => m.map(msg => msg._streaming ? { ...msg, _streaming:false } : msg));
-      } else {
-        setError(err.message || "Connection failed");
-        setMessages(m => m.map(msg =>
-          msg.timestamp === placeholderId
-            ? { ...msg, content:`⚠️ Error: ${err.message || "Connection error"}. Please try again.`, _streaming:false }
-            : msg
-        ));
-      }
+      if (err.name === "AbortError") return;
+      setError(err.message || "Connection failed. Check your API key.");
+      setMessages(m => m.filter(msg => msg.timestamp !== placeholderId));
     } finally {
       setLoading(false);
-      setStreaming(false);
       abortRef.current = null;
     }
   };
@@ -240,7 +201,6 @@ const AIAssistant = () => {
   };
 
   const clearChat = () => {
-    if (loading) stopGeneration();
     setMessages([{ role:"assistant", content:"Chat cleared! 🗑️ How can I help you today?", timestamp:Date.now() }]);
     setError(null);
   };
@@ -251,6 +211,8 @@ const AIAssistant = () => {
     <div className={`min-h-screen ${isDark?"bg-mesh":"bg-mesh-light"} flex flex-col`}>
       <Navbar />
       <div className="pt-20 flex flex-col flex-1 max-w-4xl mx-auto w-full px-4 pb-24 lg:pb-6">
+
+        {/* Header */}
         <div className="flex items-center justify-between py-4 animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg animate-float"
@@ -273,6 +235,7 @@ const AIAssistant = () => {
           </button>
         </div>
 
+        {/* Error */}
         {error && (
           <div className="mb-3 glass-card p-3 border-red-500/30 bg-red-500/8 flex items-center gap-2 animate-fade-in">
             <AlertCircle size={14} className="text-red-400 shrink-0" />
@@ -281,13 +244,26 @@ const AIAssistant = () => {
           </div>
         )}
 
+        {/* Messages */}
         <div className="flex-1 glass-card p-4 overflow-y-auto custom-scrollbar space-y-4 mb-4 min-h-[50vh] max-h-[58vh]">
           {messages.map((msg, i) => (
-            <Bubble key={i} msg={msg} isStreaming={!!msg._streaming} />
+            <Bubble key={i} msg={msg} />
           ))}
+          {loading && (
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background:`linear-gradient(135deg,var(--grad1),var(--grad2))` }}>
+                <Sparkles size={14} className="text-white" />
+              </div>
+              <div className="glass-card px-4 py-3 rounded-2xl rounded-tl-md">
+                <TypingDots />
+              </div>
+            </div>
+          )}
           <div ref={bottomRef} />
         </div>
 
+        {/* Suggestions */}
         {showSuggestions && (
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1 animate-slide-up custom-scrollbar">
             {SUGGESTIONS.slice(0,4).map(s => (
@@ -299,31 +275,26 @@ const AIAssistant = () => {
           </div>
         )}
 
+        {/* Input */}
         <div className="glass-card p-3 flex items-end gap-3 animate-slide-up transition-all duration-300"
           style={{ border:`1px solid rgba(var(--glow),0.15)` }}
           onFocusCapture={e => { e.currentTarget.style.border=`1px solid rgba(var(--glow),0.4)`; e.currentTarget.style.boxShadow=`0 0 0 3px rgba(var(--glow),0.08)`; }}
           onBlurCapture={e  => { e.currentTarget.style.border=`1px solid rgba(var(--glow),0.15)`; e.currentTarget.style.boxShadow="none"; }}>
           <textarea ref={textareaRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown}
             placeholder="Ask me anything about productivity, planning, habits..."
-            rows={1} disabled={loading && !streaming}
+            rows={1} disabled={loading}
             className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none resize-none text-sm leading-relaxed disabled:opacity-50"
             style={{ maxHeight:"120px", overflowY:"auto" }} />
-          {streaming ? (
-            <button onClick={stopGeneration}
-              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0 hover:scale-110 active:scale-95 bg-red-500/20 border border-red-500/30">
-              <StopCircle size={15} className="text-red-400" />
-            </button>
-          ) : (
-            <button onClick={() => send()}
-              disabled={!input.trim() || loading}
-              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-110 active:scale-95"
-              style={{ background:`linear-gradient(135deg,var(--grad1),var(--grad2))`, boxShadow:`0 4px 15px rgba(var(--glow),0.4)` }}>
-              <Send size={15} className="text-white" />
-            </button>
-          )}
+          <button onClick={() => send()}
+            disabled={!input.trim() || loading}
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-110 active:scale-95"
+            style={{ background:`linear-gradient(135deg,var(--grad1),var(--grad2))`, boxShadow:`0 4px 15px rgba(var(--glow),0.4)` }}>
+            <Send size={15} className="text-white" />
+          </button>
         </div>
+
         <p className="text-center text-gray-600 text-xs mt-2">
-          Powered by Claude · Enter to send · Shift+Enter for new line · {RATE_LIMIT} msgs/min
+          Powered by Claude · Enter to send · Shift+Enter for new line
         </p>
       </div>
     </div>
