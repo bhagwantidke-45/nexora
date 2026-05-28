@@ -1,0 +1,56 @@
+{
+  "name": "Nexora — Personal Productivity Hub",
+  "short_name": "Nexora",
+  "description": "All-in-one personal productivity: tasks, habits, goals, finance, AI assistant.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#a855f7",
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "lifestyle", "utilities"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Add Task",
+      "short_name": "Task",
+      "description": "Quickly add a new task",
+      "url": "/tasks",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Start Focus Timer",
+      "short_name": "Focus",
+      "description": "Start a Pomodoro focus session",
+      "url": "/focus",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "AI Assistant",
+      "short_name": "AI",
+      "description": "Open Nexora AI chat",
+      "url": "/ai",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ]
+}

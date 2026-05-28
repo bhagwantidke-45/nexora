@@ -2,18 +2,47 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Nexora — Your all-in-one personal productivity hub. Tasks, habits, goals, finance, AI assistant and more." />
+    <meta name="theme-color" content="#a855f7" />
+    <meta name="color-scheme" content="dark light" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Nexora" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Open Graph -->
+    <meta property="og:title"       content="Nexora — Personal Productivity Hub" />
+    <meta property="og:description" content="Tasks, habits, goals, finance tracker and AI assistant — all in one beautiful app." />
+    <meta property="og:type"        content="website" />
+    <meta property="og:image"       content="/favicon.svg" />
+
+    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Nexora - Your Personal Productivity Hub" />
-    <title>Nexora</title>
+
+    <!-- Fonts: preconnect first, then load -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+
+    <title>Nexora</title>
   </head>
   <body>
+    <!-- Accessible skip link -->
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-purple-600 focus:text-white focus:rounded-xl focus:font-medium"
+    >
+      Skip to main content
+    </a>
+
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

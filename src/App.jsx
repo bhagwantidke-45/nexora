@@ -1,33 +1,46 @@
-// App.jsx — Page transitions, 404 route, MobileNav globally injected
+/**
+ * App.jsx — Final version with all improvements
+ */
+
+import { lazy, Suspense, useState, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "./firebase/config";
 import { useAuth }  from "./context/AuthContext";
 import { useTheme } from "./context/ThemeContext";
 
-// Auth
+import Loader            from "./components/shared/Loader";
+import MobileNav         from "./components/shared/MobileNav";
+import ErrorBoundary     from "./components/shared/ErrorBoundary";
+import OfflineBanner     from "./components/shared/OfflineBanner";
+import QuickAdd          from "./components/shared/QuickAdd";
+import KeyboardShortcuts from "./components/shared/KeyboardShortcuts";
+import Onboarding        from "./components/onboarding/Onboarding";
+import { NotificationProvider } from "./context/NotificationContext";
+
 import Login          from "./components/auth/Login";
 import Register       from "./components/auth/Register";
 import ForgotPassword from "./components/auth/ForgotPassword";
 
-// App pages
-import Dashboard   from "./components/dashboard/Dashboard";
-import TaskManager from "./components/tasks/TaskManager";
-import CalendarView from "./components/calendar/CalendarView";
-import Records     from "./components/records/Records";
-import HabitTracker from "./components/habits/HabitTracker";
-import Statistics  from "./components/stats/Statistics";
-import Profile     from "./components/profile/Profile";
-import Finance     from "./components/finance/Finance";
-import Goals       from "./components/goals/Goals";
-import Focus       from "./components/focus/Focus";
-import AIAssistant from "./components/ai/AIAssistant";
+const Dashboard    = lazy(() => import("./components/dashboard/Dashboard"));
+const TaskManager  = lazy(() => import("./components/tasks/TaskManager"));
+const CalendarView = lazy(() => import("./components/calendar/CalendarView"));
+const Records      = lazy(() => import("./components/records/Records"));
+const HabitTracker = lazy(() => import("./components/habits/HabitTracker"));
+const Statistics   = lazy(() => import("./components/stats/Statistics"));
+const Profile      = lazy(() => import("./components/profile/Profile"));
+const Finance      = lazy(() => import("./components/finance/Finance"));
+const Goals        = lazy(() => import("./components/goals/Goals"));
+const Focus        = lazy(() => import("./components/focus/Focus"));
+const AIAssistant  = lazy(() => import("./components/ai/AIAssistant"));
+const NotFound     = lazy(() => import("./pages/NotFound"));
 
-// Shared
-import Loader       from "./components/shared/Loader";
-import MobileNav    from "./components/shared/MobileNav";
-import NotFound     from "./pages/NotFound";
-import PageTransition from "./components/shared/PageTransition";
+const PageFallback = () => (
+  <div className="min-h-[60vh] flex items-center justify-center" aria-busy="true">
+    <div className="w-8 h-8 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
+  </div>
+);
 
-/* ── Route guards ── */
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <Loader />;
@@ -40,115 +53,88 @@ const PublicRoute = ({ children }) => {
   return !user ? children : <Navigate to="/dashboard" replace />;
 };
 
-/* ── Animated page wrapper ── */
-const AnimatedPage = ({ children }) => {
-  const location = useLocation();
-  return (
-    <PageTransition key={location.pathname}>
-      {children}
-    </PageTransition>
-  );
+const OnboardingGate = ({ children }) => {
+  const { user }          = useAuth();
+  const { setColorTheme } = useTheme();
+  const [checked,  setChecked]  = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (!user) { setChecked(true); return; }
+    getDoc(doc(db, "userProfiles", user.uid))
+      .then((snap) => {
+        if (!snap.exists() || !snap.data()?.onboardingComplete) {
+          setNeedsOnboarding(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setChecked(true));
+  }, [user]);
+
+  if (!checked) return <Loader />;
+
+  if (needsOnboarding) {
+    return (
+      <Onboarding
+        onComplete={({ theme }) => {
+          if (theme) setColorTheme(theme);
+          setNeedsOnboarding(false);
+        }}
+      />
+    );
+  }
+
+  return children;
 };
 
-/* ══════════════════════════════════════════════════════════════════════════════ */
+const Page = ({ component: Component }) => (
+  <ErrorBoundary>
+    <Suspense fallback={<PageFallback />}>
+      <Component />
+    </Suspense>
+  </ErrorBoundary>
+);
+
 const App = () => {
   const { isDark }  = useTheme();
   const { user }    = useAuth();
   const location    = useLocation();
 
-  // Pages where bottom MobileNav should NOT appear
-  const noMobileNav = ["/login", "/register", "/forgot-password"];
+  const noMobileNav   = ["/login", "/register", "/forgot-password"];
   const showMobileNav = user && !noMobileNav.includes(location.pathname);
 
   return (
-    <div
-      className={`min-h-screen ${isDark ? "bg-mesh" : "bg-mesh-light"}
-                  transition-all duration-500`}
-    >
-      <Routes>
-        {/* ── Public ── */}
-        <Route path="/login" element={
-          <PublicRoute>
-            <AnimatedPage><Login /></AnimatedPage>
-          </PublicRoute>
-        }/>
-        <Route path="/register" element={
-          <PublicRoute>
-            <AnimatedPage><Register /></AnimatedPage>
-          </PublicRoute>
-        }/>
-        <Route path="/forgot-password" element={
-          <PublicRoute>
-            <AnimatedPage><ForgotPassword /></AnimatedPage>
-          </PublicRoute>
-        }/>
+    <NotificationProvider>
+      <div id="main-content" className={`min-h-screen ${isDark ? "bg-mesh" : "bg-mesh-light"} transition-all duration-500`}>
+        <OfflineBanner />
+        <KeyboardShortcuts />
 
-        {/* ── Protected ── */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <AnimatedPage><Dashboard /></AnimatedPage>
-          </ProtectedRoute>
-        }/>
-        <Route path="/tasks" element={
-          <ProtectedRoute>
-            <AnimatedPage><TaskManager /></AnimatedPage>
-          </ProtectedRoute>
-        }/>
-        <Route path="/calendar" element={
-          <ProtectedRoute>
-            <AnimatedPage><CalendarView /></AnimatedPage>
-          </ProtectedRoute>
-        }/>
-        <Route path="/records" element={
-          <ProtectedRoute>
-            <AnimatedPage><Records /></AnimatedPage>
-          </ProtectedRoute>
-        }/>
-        <Route path="/habits" element={
-          <ProtectedRoute>
-            <AnimatedPage><HabitTracker /></AnimatedPage>
-          </ProtectedRoute>
-        }/>
-        <Route path="/stats" element={
-          <ProtectedRoute>
-            <AnimatedPage><Statistics /></AnimatedPage>
-          </ProtectedRoute>
-        }/>
-        <Route path="/profile" element={
-          <ProtectedRoute>
-            <AnimatedPage><Profile /></AnimatedPage>
-          </ProtectedRoute>
-        }/>
-        <Route path="/finance" element={
-          <ProtectedRoute>
-            <AnimatedPage><Finance /></AnimatedPage>
-          </ProtectedRoute>
-        }/>
-        <Route path="/goals" element={
-          <ProtectedRoute>
-            <AnimatedPage><Goals /></AnimatedPage>
-          </ProtectedRoute>
-        }/>
-        <Route path="/focus" element={
-          <ProtectedRoute>
-            <AnimatedPage><Focus /></AnimatedPage>
-          </ProtectedRoute>
-        }/>
-        <Route path="/ai" element={
-          <ProtectedRoute>
-            <AnimatedPage><AIAssistant /></AnimatedPage>
-          </ProtectedRoute>
-        }/>
+        <Routes>
+          <Route path="/login"           element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register"        element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
 
-        {/* ── Fallbacks ── */}
-        <Route path="/"   element={<Navigate to="/dashboard" replace />} />
-        <Route path="/404" element={<AnimatedPage><NotFound /></AnimatedPage>} />
-        <Route path="*"   element={<AnimatedPage><NotFound /></AnimatedPage>} />
-      </Routes>
+          <Route path="/dashboard" element={<ProtectedRoute><OnboardingGate><Page component={Dashboard} /></OnboardingGate></ProtectedRoute>} />
+          <Route path="/tasks"     element={<ProtectedRoute><Page component={TaskManager} /></ProtectedRoute>} />
+          <Route path="/calendar"  element={<ProtectedRoute><Page component={CalendarView} /></ProtectedRoute>} />
+          <Route path="/records"   element={<ProtectedRoute><Page component={Records} /></ProtectedRoute>} />
+          <Route path="/habits"    element={<ProtectedRoute><Page component={HabitTracker} /></ProtectedRoute>} />
+          <Route path="/stats"     element={<ProtectedRoute><Page component={Statistics} /></ProtectedRoute>} />
+          <Route path="/profile"   element={<ProtectedRoute><Page component={Profile} /></ProtectedRoute>} />
+          <Route path="/finance"   element={<ProtectedRoute><Page component={Finance} /></ProtectedRoute>} />
+          <Route path="/goals"     element={<ProtectedRoute><Page component={Goals} /></ProtectedRoute>} />
+          <Route path="/focus"     element={<ProtectedRoute><Page component={Focus} /></ProtectedRoute>} />
+          <Route path="/ai"        element={<ProtectedRoute><Page component={AIAssistant} /></ProtectedRoute>} />
 
-      {/* ── Global Mobile Bottom Nav ── */}
-      {showMobileNav && <MobileNav />}
-    </div>
+          <Route path="/"    element={<Navigate to="/dashboard" replace />} />
+          <Route path="/404" element={<Page component={NotFound} />} />
+          <Route path="*"    element={<Page component={NotFound} />} />
+        </Routes>
+
+        {user && <QuickAdd />}
+        {showMobileNav && <MobileNav />}
+      </div>
+    </NotificationProvider>
   );
 };
 
