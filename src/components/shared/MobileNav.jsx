@@ -25,6 +25,9 @@ const MORE_ITEMS = [
   { path: "/stats",   icon: BarChart2,  label: "Stats"   },
 ];
 
+// Nav bar height in px — used to push QuickAdd up when sheet is open
+const NAV_HEIGHT = 72;
+
 const MobileNav = () => {
   const location = useLocation();
   const [showMore, setShowMore] = useState(false);
@@ -135,10 +138,14 @@ const MobileNav = () => {
             onClick={() => setShowMore(false)}
           />
 
-          {/* Sheet */}
+          {/* Sheet — sits just above the nav bar, leaves room for QuickAdd FAB on the right */}
           <div
-            className="lg:hidden fixed bottom-16 left-4 right-4 z-50 glass-card p-4 animate-slide-up"
-            style={{ borderRadius: "1.25rem" }}
+            className="lg:hidden fixed left-4 right-20 z-50 glass-card p-4 animate-slide-up"
+            style={{
+              borderRadius: "1.25rem",
+              // bottom = nav bar height (≈72px) + 8px gap
+              bottom: `calc(${NAV_HEIGHT}px + 8px)`,
+            }}
           >
             {/* Handle */}
             <div className="flex items-center justify-between mb-4">

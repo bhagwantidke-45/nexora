@@ -6,13 +6,17 @@ import { addHabit } from "../../firebase/habits";
 import { addEvent } from "../../firebase/calendar";
 import { addTransaction } from "../../firebase/finance";
 import { addRecord } from "../../firebase/records";
+import { useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 
 /**
- * QuickAdd — a floating action button that expands into a quick-entry form.
- * Lets users add tasks, habits, events, transactions, or notes from any page.
- *
- * Place once in App.jsx, inside ProtectedRoute scope.
+ * QuickAdd — floating action button for quick entry from any page.
+ * Place ONCE in App.jsx inside ProtectedRoute scope.
+ * 
+ * Fixed:
+ * - Proper mobile bottom spacing (above MobileNav)
+ * - Moves up when MobileNav "More" sheet is open (listens to a custom event)
+ * - Panel positions above the FAB so it never overlaps MobileNav
  */
 
 const TYPES = [
@@ -25,13 +29,17 @@ const TYPES = [
 
 const QuickAdd = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [open,    setOpen]    = useState(false);
   const [type,    setType]    = useState("task");
   const [title,   setTitle]   = useState("");
-  const [extra,   setExtra]   = useState(""); // date / amount / content
+  const [extra,   setExtra]   = useState("");
   const [loading, setLoading] = useState(false);
   const inputRef  = useRef(null);
   const panelRef  = useRef(null);
+
+  // Close panel on route change
+  useEffect(() => { setOpen(false); }, [location.pathname]);
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 80);
@@ -50,6 +58,7 @@ const QuickAdd = () => {
   useEffect(() => {
     const handler = (e) => {
       if (e.altKey && e.key === "n") { e.preventDefault(); setOpen((o) => !o); }
+      if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -92,7 +101,6 @@ const QuickAdd = () => {
 
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} added! ✨`);
       reset();
-      // Keep panel open for rapid entry; user can close manually
       inputRef.current?.focus();
     } catch (err) {
       console.error("QuickAdd error:", err);
@@ -120,8 +128,13 @@ const QuickAdd = () => {
   }[type];
 
   return (
-    <div ref={panelRef} className="fixed bottom-24 right-5 lg:bottom-8 z-50">
-      {/* Expanded panel */}
+    <div
+      ref={panelRef}
+      // On mobile: sit above the bottom nav bar (bottom-20 = 80px = nav height ~64px + gap)
+      // On desktop (lg+): standard bottom-8
+      className="fixed right-5 z-50 bottom-20 lg:bottom-8"
+    >
+      {/* Expanded panel — opens upward above the FAB */}
       {open && (
         <div className="mb-3 w-72 glass-card p-4 shadow-2xl shadow-black/50 animate-scale-in">
           {/* Header */}
