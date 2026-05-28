@@ -11,15 +11,14 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
-        '/api/claude': {
-          target: 'https://api.anthropic.com',
+        '/api/groq': {
+          target: 'https://api.groq.com',
           changeOrigin: true,
           secure: true,
-          rewrite: (path) => path.replace(/^\/api\/claude/, ''),
+          rewrite: (path) => path.replace(/^\/api\/groq/, ''),
           configure: (proxy) => {
             proxy.on('proxyReq', (proxyReq) => {
-              proxyReq.setHeader('x-api-key', env.VITE_ANTHROPIC_API_KEY || '');
-              proxyReq.setHeader('anthropic-version', '2023-06-01');
+              proxyReq.setHeader('Authorization', `Bearer ${env.VITE_GROQ_API_KEY || ''}`);
               proxyReq.removeHeader('origin');
               proxyReq.removeHeader('referer');
             });

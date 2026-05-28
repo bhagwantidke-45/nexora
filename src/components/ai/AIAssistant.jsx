@@ -1,4 +1,4 @@
-// AIAssistant.jsx — Uses Vite proxy to avoid CORS
+// AIAssistant.jsx — Uses Vite proxy to avoid CORS (Groq API)
 import { useState, useRef, useEffect } from "react";
 import { Sparkles, Send, User, RotateCcw, Copy, Check, AlertCircle } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
@@ -145,7 +145,6 @@ const AIAssistant = () => {
     setMessages(updatedHistory);
     setLoading(true);
 
-    // Add typing placeholder
     const placeholderId = Date.now();
     setMessages(m => [...m, { role:"assistant", content:"", timestamp:placeholderId }]);
 
@@ -157,18 +156,20 @@ const AIAssistant = () => {
         .slice(-MAX_HISTORY)
         .map(({ role, content }) => ({ role, content }));
 
-      // Uses Vite proxy → /api/claude → https://api.anthropic.com
-      const response = await fetch("/api/claude/v1/messages", {
+      // Groq uses OpenAI-compatible API format
+      const response = await fetch("/api/groq/openai/v1/chat/completions", {
         method: "POST",
         signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "llama-3.3-70b-versatile",
           max_tokens: 1024,
-          system: SYSTEM_PROMPT,
-          messages: historyForAPI,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            ...historyForAPI,
+          ],
         }),
       });
 
@@ -178,7 +179,8 @@ const AIAssistant = () => {
       }
 
       const data  = await response.json();
-      const reply = data.content?.[0]?.text || "No response. Please try again.";
+      // Groq returns OpenAI-style: choices[0].message.content
+      const reply = data.choices?.[0]?.message?.content || "No response. Please try again.";
 
       setMessages(m => m.map(msg =>
         msg.timestamp === placeholderId
@@ -225,7 +227,7 @@ const AIAssistant = () => {
                 <div className="w-1.5 h-1.5 rounded-full animate-ping-slow"
                   style={{ background: loading ? "#f59e0b" : "#10b981" }} />
                 <span className="text-xs" style={{ color: loading ? "#f59e0b" : "#10b981" }}>
-                  {loading ? "Thinking…" : "Online · Powered by Claude"}
+                  {loading ? "Thinking…" : "Online · Powered by Groq"}
                 </span>
               </div>
             </div>
@@ -294,7 +296,7 @@ const AIAssistant = () => {
         </div>
 
         <p className="text-center text-gray-600 text-xs mt-2">
-          Powered by Claude · Enter to send · Shift+Enter for new line
+          Powered by Groq · Enter to send · Shift+Enter for new line
         </p>
       </div>
     </div>

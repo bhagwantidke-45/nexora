@@ -1,20 +1,10 @@
 import { useState, useCallback } from "react";
 import { Sparkles, RefreshCcw, ChevronDown, ChevronUp } from "lucide-react";
 
-/**
- * DailyBrief — asks Claude to generate a personalised daily summary
- * based on the user's tasks, habits and events.
- *
- * Props:
- *   tasks:  Task[]
- *   habits: Habit[]
- *   events: Event[]
- *   userName: string
- */
 const DailyBrief = ({ tasks = [], habits = [], events = [], userName = "there" }) => {
-  const [brief,   setBrief]   = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
+  const [brief,    setBrief]    = useState(null);
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState(null);
   const [expanded, setExpanded] = useState(true);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -23,8 +13,8 @@ const DailyBrief = ({ tasks = [], habits = [], events = [], userName = "there" }
     setLoading(true);
     setError(null);
 
-    const overdue    = tasks.filter((t) => t.dueDate && t.dueDate < today && t.status !== "done");
-    const todayTasks = tasks.filter((t) => t.dueDate === today && t.status !== "done");
+    const overdue     = tasks.filter((t) => t.dueDate && t.dueDate < today && t.status !== "done");
+    const todayTasks  = tasks.filter((t) => t.dueDate === today && t.status !== "done");
     const todayEvents = events.filter((e) => e.date === today);
     const habitsLeft  = habits.filter((h) => !(h.completedDates || []).includes(today));
 
@@ -39,22 +29,27 @@ Habits remaining: ${habitsLeft.map((h) => h.title).join(", ") || "all done!"}
 Write a punchy, friendly brief that starts with a short greeting using their name and today's context.`;
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/groq/openai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "anthropic-dangerous-direct-browser-calls": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "llama-3.3-70b-versatile",
           max_tokens: 200,
-          messages: [{ role: "user", content: prompt }],
+          messages: [
+            { role: "user", content: prompt },
+          ],
         }),
       });
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData?.error?.message || `HTTP ${response.status}`);
+      }
+
       const data = await response.json();
-      const text = data.content?.filter((b) => b.type === "text").map((b) => b.text).join("") || "";
+      const text = data.choices?.[0]?.message?.content || "";
       setBrief(text);
     } catch (err) {
       setError("Couldn't load your brief. Check your connection.");
@@ -67,7 +62,6 @@ Write a punchy, friendly brief that starts with a short greeting using their nam
   return (
     <div className="glass-card p-5 mb-5 relative overflow-hidden animate-slide-up"
       style={{ borderLeft: "3px solid var(--p500)" }}>
-      {/* BG glow */}
       <div className="absolute top-0 right-0 w-32 h-32 rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, rgba(var(--glow),0.08) 0%, transparent 70%)` }} />
 
