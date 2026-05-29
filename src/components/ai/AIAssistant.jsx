@@ -79,7 +79,9 @@ const Bubble = ({ msg }) => {
           } : { color:"#e5e7eb" }}>
           {isTyping
             ? <TypingDots />
-            : <div className="space-y-0.5">{renderContent(msg.content)}</div>
+            : isUser
+              ? <p className="leading-relaxed">{msg.content}</p>
+              : <div className="space-y-0.5">{renderContent(msg.content)}</div>
           }
         </div>
         <div className={`flex items-center gap-2 ${isUser?"flex-row-reverse":""}`}>
@@ -143,21 +145,22 @@ const AIAssistant = () => {
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
     const newUserMsg = { role:"user", content:userMsg, timestamp:Date.now() };
-    const updatedHistory = [...messages, newUserMsg];
-    setMessages(updatedHistory);
-    setLoading(true);
+    const placeholderId = Date.now() + 1;
+    const placeholder = { role:"assistant", content:"", timestamp:placeholderId };
 
-    const placeholderId = Date.now();
-    setMessages(m => [...m, { role:"assistant", content:"", timestamp:placeholderId }]);
+    // Build history for API before touching state
+    const historyForAPI = [...messages, newUserMsg]
+      .slice(-MAX_HISTORY)
+      .map(({ role, content }) => ({ role, content }));
+
+    // Single state update — user msg + placeholder together
+    setMessages(m => [...m, newUserMsg, placeholder]);
+    setLoading(true);
 
     const controller = new AbortController();
     abortRef.current = controller;
 
     try {
-      const historyForAPI = updatedHistory
-        .slice(-MAX_HISTORY)
-        .map(({ role, content }) => ({ role, content }));
-
       const response = await fetch(GROQ_API_URL, {
         method: "POST",
         signal: controller.signal,
