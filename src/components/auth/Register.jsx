@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, Lock, Eye, EyeOff, User, Zap } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import toast from "react-hot-toast";
 
@@ -60,7 +60,7 @@ const Register = () => {
         <div className="flex flex-col items-center mb-8">
           <div className="relative mb-4">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center shadow-lg shadow-primary-500/25">
-              <Zap size={28} className="text-white" />
+              <img src="/favicon.svg" alt="Nexora" className="w-10 h-10" />
             </div>
             <div className="absolute -inset-1 bg-gradient-to-br from-primary-500 to-purple-600 rounded-2xl blur opacity-30"></div>
           </div>

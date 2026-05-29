@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Zap, CheckSquare, Target, Calendar, DollarSign,
+  CheckSquare, Target, Calendar, DollarSign,
   ArrowRight, ArrowLeft, Sparkles, Flame, BookOpen
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -95,11 +95,10 @@ const Onboarding = ({ onComplete }) => {
         },
         { merge: true }
       );
-      // Propagate theme choice immediately
       onComplete({ theme: selectedTheme });
     } catch (err) {
       console.error("Onboarding save failed:", err);
-      onComplete({ theme: selectedTheme }); // don't block user on error
+      onComplete({ theme: selectedTheme });
     } finally {
       setSaving(false);
     }
@@ -120,7 +119,7 @@ const Onboarding = ({ onComplete }) => {
         {/* Logo */}
         <div className="flex items-center gap-2 mb-6">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center shadow-lg shadow-primary-500/25">
-            <Zap size={16} className="text-white" />
+            <img src="/favicon.svg" alt="Nexora" className="w-5 h-5" />
           </div>
           <span className="font-display font-bold text-lg text-gradient">Nexora</span>
         </div>
@@ -272,7 +271,7 @@ const Onboarding = ({ onComplete }) => {
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : isLast ? (
               <>
-                <Zap size={15} /> Start using Nexora
+                <img src="/favicon.svg" alt="" className="w-4 h-4" /> Start using Nexora
               </>
             ) : (
               <>

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, CheckSquare, Calendar, BookOpen,
-  BarChart2, Target, LogOut, Menu, X, Zap,
+  BarChart2, Target, LogOut, Menu, X,
   Settings, Search, Sparkles, DollarSign, Timer, Flag,
 } from "lucide-react";
 import { useAuth }  from "../../context/AuthContext";
@@ -90,7 +90,7 @@ const Navbar = () => {
               className="w-8 h-8 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:rotate-6"
               style={{ background: `linear-gradient(135deg, var(--grad1), var(--grad2))`, boxShadow: `0 4px 15px rgba(var(--glow),0.4)` }}
             >
-              <Zap size={16} className="text-white" aria-hidden="true" />
+              <img src="/favicon.svg" alt="Nexora" className="w-5 h-5" aria-hidden="true" />
             </div>
             <span className="font-display font-bold text-xl text-gradient hidden sm:block">Nexora</span>
           </Link>

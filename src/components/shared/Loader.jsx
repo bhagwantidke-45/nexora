@@ -5,7 +5,7 @@ const Loader = () => {
         {/* Logo */}
         <div className="relative">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center shadow-lg shadow-primary-500/25">
-            <span className="text-white font-display font-bold text-2xl">N</span>
+            <img src="/favicon.svg" alt="Nexora" className="w-10 h-10" />
           </div>
           <div className="absolute -inset-1 bg-gradient-to-br from-primary-500 to-purple-600 rounded-2xl blur opacity-30 animate-pulse-slow"></div>
         </div>

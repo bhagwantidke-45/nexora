@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, CheckSquare, Calendar, BookOpen,
-  BarChart2, Target, LogOut, Zap, Settings,
+  BarChart2, Target, LogOut, Settings,
   ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -22,12 +22,6 @@ const navItems = [
 
 /**
  * Sidebar — collapsible left navigation panel.
- * Usage: wrap page content in a flex container and render <Sidebar /> beside it.
- *
- * <div className="flex">
- *   <Sidebar />
- *   <main className="flex-1 ...">...</main>
- * </div>
  */
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -55,7 +49,7 @@ const Sidebar = () => {
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center shrink-0 shadow-lg shadow-primary-500/25">
-          <Zap size={16} className="text-white" />
+          <img src="/favicon.svg" alt="Nexora" className="w-5 h-5" />
         </div>
         {!collapsed && (
           <span className="font-display font-bold text-xl text-gradient">Nexora</span>
