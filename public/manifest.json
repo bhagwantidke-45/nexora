@@ -4,7 +4,7 @@
   "description": "All-in-one personal productivity: tasks, habits, goals, finance, AI assistant.",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#0a0a0f",
+  "background_color": "#12052a",
   "theme_color": "#a855f7",
   "orientation": "portrait-primary",
   "categories": ["productivity", "lifestyle", "utilities"],
@@ -13,7 +13,7 @@
       "src": "/favicon.svg",
       "type": "image/svg+xml",
       "sizes": "any",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-192.png",
