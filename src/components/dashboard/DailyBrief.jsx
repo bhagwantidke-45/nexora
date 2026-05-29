@@ -1,6 +1,9 @@
 import { useState, useCallback } from "react";
 import { Sparkles, RefreshCcw, ChevronDown, ChevronUp } from "lucide-react";
 
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL   = "llama-3.3-70b-versatile";
+
 const DailyBrief = ({ tasks = [], habits = [], events = [], userName = "there" }) => {
   const [brief,    setBrief]    = useState(null);
   const [loading,  setLoading]  = useState(false);
@@ -29,13 +32,14 @@ Habits remaining: ${habitsLeft.map((h) => h.title).join(", ") || "all done!"}
 Write a punchy, friendly brief that starts with a short greeting using their name and today's context.`;
 
     try {
-      const response = await fetch("/api/groq/openai/v1/chat/completions", {
+      const response = await fetch(GROQ_API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: GROQ_MODEL,
           max_tokens: 200,
           messages: [
             { role: "user", content: prompt },

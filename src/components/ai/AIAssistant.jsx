@@ -1,8 +1,10 @@
-// AIAssistant.jsx — Uses Vite proxy to avoid CORS (Groq API)
 import { useState, useRef, useEffect } from "react";
 import { Sparkles, Send, User, RotateCcw, Copy, Check, AlertCircle } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 import Navbar from "../shared/Navbar";
+
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL   = "llama-3.3-70b-versatile";
 
 const SYSTEM_PROMPT = `You are Nexora AI — a smart, friendly personal productivity assistant built into the Nexora app. Nexora helps users manage tasks, habits, goals, finance, calendar, and records.
 Your role:
@@ -156,15 +158,15 @@ const AIAssistant = () => {
         .slice(-MAX_HISTORY)
         .map(({ role, content }) => ({ role, content }));
 
-      // Groq uses OpenAI-compatible API format
-      const response = await fetch("/api/groq/openai/v1/chat/completions", {
+      const response = await fetch(GROQ_API_URL, {
         method: "POST",
         signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: GROQ_MODEL,
           max_tokens: 1024,
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
@@ -179,7 +181,6 @@ const AIAssistant = () => {
       }
 
       const data  = await response.json();
-      // Groq returns OpenAI-style: choices[0].message.content
       const reply = data.choices?.[0]?.message?.content || "No response. Please try again.";
 
       setMessages(m => m.map(msg =>
@@ -214,7 +215,6 @@ const AIAssistant = () => {
       <Navbar />
       <div className="pt-20 flex flex-col flex-1 max-w-4xl mx-auto w-full px-4 pb-24 lg:pb-6">
 
-        {/* Header */}
         <div className="flex items-center justify-between py-4 animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg animate-float"
@@ -237,7 +237,6 @@ const AIAssistant = () => {
           </button>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mb-3 glass-card p-3 border-red-500/30 bg-red-500/8 flex items-center gap-2 animate-fade-in">
             <AlertCircle size={14} className="text-red-400 shrink-0" />
@@ -246,7 +245,6 @@ const AIAssistant = () => {
           </div>
         )}
 
-        {/* Messages */}
         <div className="flex-1 glass-card p-4 overflow-y-auto custom-scrollbar space-y-4 mb-4 min-h-[50vh] max-h-[58vh]">
           {messages.map((msg, i) => (
             <Bubble key={i} msg={msg} />
@@ -265,7 +263,6 @@ const AIAssistant = () => {
           <div ref={bottomRef} />
         </div>
 
-        {/* Suggestions */}
         {showSuggestions && (
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1 animate-slide-up custom-scrollbar">
             {SUGGESTIONS.slice(0,4).map(s => (
@@ -277,7 +274,6 @@ const AIAssistant = () => {
           </div>
         )}
 
-        {/* Input */}
         <div className="glass-card p-3 flex items-end gap-3 animate-slide-up transition-all duration-300"
           style={{ border:`1px solid rgba(var(--glow),0.15)` }}
           onFocusCapture={e => { e.currentTarget.style.border=`1px solid rgba(var(--glow),0.4)`; e.currentTarget.style.boxShadow=`0 0 0 3px rgba(var(--glow),0.08)`; }}
