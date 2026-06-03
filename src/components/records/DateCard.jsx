@@ -1,6 +1,6 @@
 import { Edit2, Trash2, Star, Calendar, Bell } from "lucide-react";
 
-const DateCard = ({ record, onEdit, onDelete, onPin }) => {
+const DateCard = ({ record, onEdit, onDelete, onPin, onView }) => {
   const today = new Date().toISOString().slice(0, 10);
 
   const daysUntil = () => {
@@ -29,9 +29,12 @@ const DateCard = ({ record, onEdit, onDelete, onPin }) => {
   };
 
   return (
-    <div className={`glass-card-hover p-5 flex flex-col gap-3 animate-fade-in ${
-      record.pinned ? "border-yellow-500/30" : ""
-    } ${days !== null && days >= 0 && days <= 3 ? "border-red-500/20" : ""}`}>
+    <div
+      onClick={() => onView(record)}
+      className={`glass-card-hover p-5 flex flex-col gap-3 animate-fade-in cursor-pointer ${
+        record.pinned ? "border-yellow-500/30" : ""
+      } ${days !== null && days >= 0 && days <= 3 ? "border-red-500/20" : ""}`}
+    >
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -41,7 +44,7 @@ const DateCard = ({ record, onEdit, onDelete, onPin }) => {
           <p className="text-white font-medium truncate">{record.title}</p>
         </div>
         <button
-          onClick={() => onPin(record.id, record.pinned)}
+          onClick={(e) => { e.stopPropagation(); onPin(record.id, record.pinned); }}
           className={`shrink-0 transition-colors ${
             record.pinned ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400"
           }`}
@@ -77,13 +80,13 @@ const DateCard = ({ record, onEdit, onDelete, onPin }) => {
       {/* Footer */}
       <div className="flex items-center justify-end mt-auto pt-2 border-t border-white/5 gap-1">
         <button
-          onClick={() => onEdit(record)}
+          onClick={(e) => { e.stopPropagation(); onEdit(record); }}
           className="p-1.5 rounded-lg text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 transition-all"
         >
           <Edit2 size={13} />
         </button>
         <button
-          onClick={() => onDelete(record.id)}
+          onClick={(e) => { e.stopPropagation(); onDelete(record.id); }}
           className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
         >
           <Trash2 size={13} />

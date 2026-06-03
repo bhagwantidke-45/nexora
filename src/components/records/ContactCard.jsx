@@ -1,10 +1,13 @@
-import { Edit2, Trash2, Star, User, Phone, Mail, MapPin } from "lucide-react";
+import { Edit2, Trash2, Star, Phone, Mail, MapPin } from "lucide-react";
 
-const ContactCard = ({ record, onEdit, onDelete, onPin }) => {
+const ContactCard = ({ record, onEdit, onDelete, onPin, onView }) => {
   return (
-    <div className={`glass-card-hover p-5 flex flex-col gap-3 animate-fade-in ${
-      record.pinned ? "border-yellow-500/30" : ""
-    }`}>
+    <div
+      onClick={() => onView(record)}
+      className={`glass-card-hover p-5 flex flex-col gap-3 animate-fade-in cursor-pointer ${
+        record.pinned ? "border-yellow-500/30" : ""
+      }`}
+    >
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -16,7 +19,7 @@ const ContactCard = ({ record, onEdit, onDelete, onPin }) => {
           <p className="text-white font-medium truncate">{record.title}</p>
         </div>
         <button
-          onClick={() => onPin(record.id, record.pinned)}
+          onClick={(e) => { e.stopPropagation(); onPin(record.id, record.pinned); }}
           className={`shrink-0 transition-colors ${
             record.pinned ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400"
           }`}
@@ -30,7 +33,11 @@ const ContactCard = ({ record, onEdit, onDelete, onPin }) => {
         {record.phone && (
           <div className="flex items-center gap-2 text-sm text-gray-400">
             <Phone size={12} className="text-green-400 shrink-0" />
-            <a href={`tel:${record.phone}`} className="hover:text-white transition-colors">
+            <a
+              href={`tel:${record.phone}`}
+              onClick={(e) => e.stopPropagation()}
+              className="hover:text-white transition-colors"
+            >
               {record.phone}
             </a>
           </div>
@@ -38,7 +45,11 @@ const ContactCard = ({ record, onEdit, onDelete, onPin }) => {
         {record.email && (
           <div className="flex items-center gap-2 text-sm text-gray-400">
             <Mail size={12} className="text-blue-400 shrink-0" />
-            <a href={`mailto:${record.email}`} className="hover:text-white transition-colors truncate">
+            <a
+              href={`mailto:${record.email}`}
+              onClick={(e) => e.stopPropagation()}
+              className="hover:text-white transition-colors truncate"
+            >
               {record.email}
             </a>
           </div>
@@ -57,13 +68,13 @@ const ContactCard = ({ record, onEdit, onDelete, onPin }) => {
       {/* Footer */}
       <div className="flex items-center justify-end mt-auto pt-2 border-t border-white/5 gap-1">
         <button
-          onClick={() => onEdit(record)}
+          onClick={(e) => { e.stopPropagation(); onEdit(record); }}
           className="p-1.5 rounded-lg text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 transition-all"
         >
           <Edit2 size={13} />
         </button>
         <button
-          onClick={() => onDelete(record.id)}
+          onClick={(e) => { e.stopPropagation(); onDelete(record.id); }}
           className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
         >
           <Trash2 size={13} />
