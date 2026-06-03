@@ -1,6 +1,7 @@
 import {
   collection, addDoc, updateDoc, deleteDoc,
   doc, query, where, onSnapshot, serverTimestamp,
+  getDocs, orderBy,
 } from "firebase/firestore";
 import { db } from "./config";
 
@@ -58,6 +59,43 @@ export const deleteSavingsGoal = (id) => deleteDoc(doc(db, "savingsGoals", id));
 
 export const getSavingsGoalsRealtime = (userId, callback) => {
   const q = query(collection(db, "savingsGoals"), where("userId", "==", userId));
+  return onSnapshot(q, (snap) =>
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+  );
+};
+
+// ── Monthly Summaries ─────────────────────────────────────────────────────────
+export const saveMonthSummary = (userId, month, data) =>
+  addDoc(collection(db, "monthSummaries"), {
+    ...data, userId, month,
+    createdAt: serverTimestamp(),
+  });
+
+export const updateMonthSummary = (id, data) =>
+  updateDoc(doc(db, "monthSummaries", id), { ...data, updatedAt: serverTimestamp() });
+
+export const getMonthSummariesRealtime = (userId, callback) => {
+  const q = query(collection(db, "monthSummaries"), where("userId", "==", userId));
+  return onSnapshot(q, (snap) =>
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+  );
+};
+
+// ── Bill Splits ───────────────────────────────────────────────────────────────
+export const addBillSplit = (userId, data) =>
+  addDoc(collection(db, "billSplits"), {
+    ...data, userId,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+export const updateBillSplit = (id, data) =>
+  updateDoc(doc(db, "billSplits", id), { ...data, updatedAt: serverTimestamp() });
+
+export const deleteBillSplit = (id) => deleteDoc(doc(db, "billSplits", id));
+
+export const getBillSplitsRealtime = (userId, callback) => {
+  const q = query(collection(db, "billSplits"), where("userId", "==", userId));
   return onSnapshot(q, (snap) =>
     callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
   );
