@@ -1,5 +1,5 @@
 /**
- * App.jsx — Final version with all improvements
+ * App.jsx — with push notification system wired in
  */
 
 import { lazy, Suspense, useState, useEffect } from "react";
@@ -9,14 +9,16 @@ import { db } from "./firebase/config";
 import { useAuth }  from "./context/AuthContext";
 import { useTheme } from "./context/ThemeContext";
 
-import Loader            from "./components/shared/Loader";
-import MobileNav         from "./components/shared/MobileNav";
-import ErrorBoundary     from "./components/shared/ErrorBoundary";
-import OfflineBanner     from "./components/shared/OfflineBanner";
-import QuickAdd          from "./components/shared/QuickAdd";
-import KeyboardShortcuts from "./components/shared/KeyboardShortcuts";
-import Onboarding        from "./components/onboarding/Onboarding";
-import { NotificationProvider } from "./context/NotificationContext";
+import Loader                        from "./components/shared/Loader";
+import MobileNav                     from "./components/shared/MobileNav";
+import ErrorBoundary                 from "./components/shared/ErrorBoundary";
+import OfflineBanner                 from "./components/shared/OfflineBanner";
+import QuickAdd                      from "./components/shared/QuickAdd";
+import KeyboardShortcuts             from "./components/shared/KeyboardShortcuts";
+import NotificationPermissionBanner  from "./components/shared/NotificationPermissionBanner";
+import Onboarding                    from "./components/onboarding/Onboarding";
+import { NotificationProvider }      from "./context/NotificationContext";
+import useAppNotifications           from "./hooks/useAppNotifications";
 
 import Login          from "./components/auth/Login";
 import Register       from "./components/auth/Register";
@@ -95,47 +97,58 @@ const Page = ({ component: Component }) => (
   </ErrorBoundary>
 );
 
-const App = () => {
+// Inner component so hooks can access auth context
+const AppInner = () => {
   const { isDark }  = useTheme();
   const { user }    = useAuth();
   const location    = useLocation();
+
+  // ← wire in all push notifications
+  useAppNotifications();
 
   const noMobileNav   = ["/login", "/register", "/forgot-password"];
   const showMobileNav = user && !noMobileNav.includes(location.pathname);
 
   return (
-    <NotificationProvider>
-      <div id="main-content" className={`min-h-screen ${isDark ? "bg-mesh" : "bg-mesh-light"} transition-all duration-500`}>
-        <OfflineBanner />
-        <KeyboardShortcuts />
+    <div id="main-content" className={`min-h-screen ${isDark ? "bg-mesh" : "bg-mesh-light"} transition-all duration-500`}>
+      <OfflineBanner />
+      <KeyboardShortcuts />
 
-        <Routes>
-          <Route path="/login"           element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/register"        element={<PublicRoute><Register /></PublicRoute>} />
-          <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+      {/* Notification permission prompt (shows after 5s if not granted) */}
+      {user && <NotificationPermissionBanner />}
 
-          <Route path="/dashboard" element={<ProtectedRoute><OnboardingGate><Page component={Dashboard} /></OnboardingGate></ProtectedRoute>} />
-          <Route path="/tasks"     element={<ProtectedRoute><Page component={TaskManager} /></ProtectedRoute>} />
-          <Route path="/calendar"  element={<ProtectedRoute><Page component={CalendarView} /></ProtectedRoute>} />
-          <Route path="/records"   element={<ProtectedRoute><Page component={Records} /></ProtectedRoute>} />
-          <Route path="/habits"    element={<ProtectedRoute><Page component={HabitTracker} /></ProtectedRoute>} />
-          <Route path="/stats"     element={<ProtectedRoute><Page component={Statistics} /></ProtectedRoute>} />
-          <Route path="/profile"   element={<ProtectedRoute><Page component={Profile} /></ProtectedRoute>} />
-          <Route path="/finance"   element={<ProtectedRoute><Page component={Finance} /></ProtectedRoute>} />
-          <Route path="/goals"     element={<ProtectedRoute><Page component={Goals} /></ProtectedRoute>} />
-          <Route path="/focus"     element={<ProtectedRoute><Page component={Focus} /></ProtectedRoute>} />
-          <Route path="/ai"        element={<ProtectedRoute><Page component={AIAssistant} /></ProtectedRoute>} />
+      <Routes>
+        <Route path="/login"           element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/register"        element={<PublicRoute><Register /></PublicRoute>} />
+        <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
 
-          <Route path="/"    element={<Navigate to="/dashboard" replace />} />
-          <Route path="/404" element={<Page component={NotFound} />} />
-          <Route path="*"    element={<Page component={NotFound} />} />
-        </Routes>
+        <Route path="/dashboard" element={<ProtectedRoute><OnboardingGate><Page component={Dashboard} /></OnboardingGate></ProtectedRoute>} />
+        <Route path="/tasks"     element={<ProtectedRoute><Page component={TaskManager} /></ProtectedRoute>} />
+        <Route path="/calendar"  element={<ProtectedRoute><Page component={CalendarView} /></ProtectedRoute>} />
+        <Route path="/records"   element={<ProtectedRoute><Page component={Records} /></ProtectedRoute>} />
+        <Route path="/habits"    element={<ProtectedRoute><Page component={HabitTracker} /></ProtectedRoute>} />
+        <Route path="/stats"     element={<ProtectedRoute><Page component={Statistics} /></ProtectedRoute>} />
+        <Route path="/profile"   element={<ProtectedRoute><Page component={Profile} /></ProtectedRoute>} />
+        <Route path="/finance"   element={<ProtectedRoute><Page component={Finance} /></ProtectedRoute>} />
+        <Route path="/goals"     element={<ProtectedRoute><Page component={Goals} /></ProtectedRoute>} />
+        <Route path="/focus"     element={<ProtectedRoute><Page component={Focus} /></ProtectedRoute>} />
+        <Route path="/ai"        element={<ProtectedRoute><Page component={AIAssistant} /></ProtectedRoute>} />
 
-        {user && <QuickAdd />}
-        {showMobileNav && <MobileNav />}
-      </div>
-    </NotificationProvider>
+        <Route path="/"    element={<Navigate to="/dashboard" replace />} />
+        <Route path="/404" element={<Page component={NotFound} />} />
+        <Route path="*"    element={<Page component={NotFound} />} />
+      </Routes>
+
+      {user && <QuickAdd />}
+      {showMobileNav && <MobileNav />}
+    </div>
   );
 };
+
+const App = () => (
+  <NotificationProvider>
+    <AppInner />
+  </NotificationProvider>
+);
 
 export default App;
