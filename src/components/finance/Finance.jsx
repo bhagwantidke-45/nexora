@@ -1,11 +1,10 @@
-// Finance.jsx — Monthly summaries, balance carryover, bill splitting, theme-aware
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   DollarSign, Plus, Trash2, Edit2, TrendingUp, TrendingDown,
   PieChart, Target, CreditCard, Search, Wallet,
   ArrowUpRight, ArrowDownRight, Calendar, Users,
   CheckCircle, Circle, ChevronDown, ChevronRight,
-  FileText, AlertCircle, History, Scissors,
+  FileText, AlertCircle, History, Scissors, HandCoins,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart as RPieChart, Pie, Cell,
@@ -23,6 +22,7 @@ import {
   addSavingsGoal, updateSavingsGoal, deleteSavingsGoal, getSavingsGoalsRealtime,
   getMonthSummariesRealtime, saveMonthSummary, updateMonthSummary,
   addBillSplit, updateBillSplit, deleteBillSplit, getBillSplitsRealtime,
+  addLending, updateLending, deleteLending, getLendingsRealtime,
 } from "../../firebase/finance";
 import toast from "react-hot-toast";
 
@@ -33,7 +33,15 @@ const EXPENSE_CATEGORIES = [
 const INCOME_CATEGORIES = ["Salary","Freelance","Business","Investment","Gift","Other"];
 const CHART_COLORS = ["#a855f7","#3b82f6","#10b981","#f59e0b","#ef4444","#ec4899","#06b6d4","#84cc16","#f97316","#8b5cf6"];
 
-const TAB = { overview:"overview", transactions:"transactions", budget:"budget", savings:"savings", splits:"splits", history:"history" };
+const TAB = {
+  overview:"overview",
+  transactions:"transactions",
+  budget:"budget",
+  savings:"savings",
+  splits:"splits",
+  lendings:"lendings",
+  history:"history",
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtINR = (n) =>
@@ -93,7 +101,6 @@ const BillSplitCard = ({ split, onEdit, onDelete, onTogglePerson }) => {
 
   return (
     <div className="glass-card p-5 animate-slide-up hover-lift">
-      {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
@@ -117,13 +124,11 @@ const BillSplitCard = ({ split, onEdit, onDelete, onTogglePerson }) => {
         </div>
       </div>
 
-      {/* Total & progress */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-white font-bold text-lg">{fmtINR(total)}</span>
         <span className="text-xs text-gray-400">{paidCount}/{totalPeople} paid</span>
       </div>
 
-      {/* Progress bar */}
       <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-3">
         <div className="h-full rounded-full transition-all duration-700"
           style={{
@@ -139,7 +144,6 @@ const BillSplitCard = ({ split, onEdit, onDelete, onTogglePerson }) => {
         <span className="text-orange-400">Pending: {fmtINR(pendingAmount)}</span>
       </div>
 
-      {/* Expand people */}
       <button
         onClick={() => setExpanded((e) => !e)}
         className="flex items-center gap-1 text-xs transition-colors hover:opacity-80"
@@ -156,9 +160,7 @@ const BillSplitCard = ({ split, onEdit, onDelete, onTogglePerson }) => {
               key={idx}
               onClick={() => onTogglePerson(split, idx)}
               className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all ${
-                person.paid
-                  ? "border border-green-500/30"
-                  : "bg-white/5 hover:bg-white/10"
+                person.paid ? "border border-green-500/30" : "bg-white/5 hover:bg-white/10"
               }`}
               style={person.paid ? { background: "rgba(16,185,129,0.08)" } : {}}
             >
@@ -200,7 +202,6 @@ const MonthlySummaryCard = ({ summary, isLatest }) => {
       className={`glass-card p-5 animate-slide-up hover-lift ${isLatest ? "border-primary-500/30" : ""}`}
       style={isLatest ? { border: "1px solid rgba(var(--glow),0.3)" } : {}}
     >
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-display font-semibold text-white">{monthLabel(summary.month)}</h3>
@@ -214,7 +215,6 @@ const MonthlySummaryCard = ({ summary, isLatest }) => {
         <Calendar size={16} style={{ color: "var(--p400)" }} />
       </div>
 
-      {/* Stats grid */}
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/20">
           <p className="text-xs text-gray-400 mb-1">Income</p>
@@ -226,7 +226,6 @@ const MonthlySummaryCard = ({ summary, isLatest }) => {
         </div>
       </div>
 
-      {/* Carryover */}
       {carryover !== 0 && (
         <div className="flex items-center justify-between p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 mb-3">
           <span className="text-blue-300 text-xs flex items-center gap-1">
@@ -238,7 +237,6 @@ const MonthlySummaryCard = ({ summary, isLatest }) => {
         </div>
       )}
 
-      {/* Net balance */}
       <div className={`flex items-center justify-between p-3 rounded-xl border ${
         finalBalance >= 0
           ? "bg-primary-500/10 border-primary-500/20"
@@ -251,7 +249,6 @@ const MonthlySummaryCard = ({ summary, isLatest }) => {
         </span>
       </div>
 
-      {/* Top expense categories */}
       {summary.topCategories && summary.topCategories.length > 0 && (
         <div className="mt-3">
           <p className="text-xs text-gray-500 mb-2">Top spending</p>
@@ -269,6 +266,149 @@ const MonthlySummaryCard = ({ summary, isLatest }) => {
   );
 };
 
+// ── Lending Card ──────────────────────────────────────────────────────────────
+const LendingCard = ({ entry, onEdit, onDelete, onSettle, onPartialRepayment, index }) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const remaining = Number(entry.amount) - Number(entry.repaidAmount || 0);
+  const pct = Number(entry.amount) > 0
+    ? Math.min(Math.round((Number(entry.repaidAmount || 0) / Number(entry.amount)) * 100), 100)
+    : 0;
+  const isOverdue = entry.dueDate && entry.dueDate < today && !entry.settled;
+  const isLent = entry.type === "lent";
+
+  const initials = (entry.personName || "?")
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  return (
+    <div
+      className={`glass-card p-5 animate-slide-up hover-lift ${
+        entry.settled ? "opacity-60" : ""
+      } ${isOverdue ? "border-red-500/30" : ""}`}
+      style={{ animationDelay: `${index * 60}ms` }}
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-3">
+          {/* Avatar */}
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
+            style={isLent
+              ? { background: "rgba(16,185,129,0.15)", color: "#34d399", border: "1px solid rgba(16,185,129,0.3)" }
+              : { background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)" }
+            }
+          >
+            {initials}
+          </div>
+          <div>
+            <p className="text-white font-medium">{entry.personName}</p>
+            <p className="text-gray-500 text-xs">{entry.date}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          {/* Type badge */}
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+            entry.settled
+              ? "bg-white/10 text-gray-400"
+              : isLent
+                ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                : "bg-red-500/20 text-red-400 border border-red-500/30"
+          }`}>
+            {entry.settled ? "Settled" : isLent ? "They owe me" : "I owe"}
+          </span>
+          {/* Amount */}
+          <span className={`font-bold text-lg ${
+            entry.settled ? "text-gray-500 line-through" : isLent ? "text-green-400" : "text-red-400"
+          }`}>
+            {fmtINR(entry.amount)}
+          </span>
+        </div>
+      </div>
+
+      {/* Description */}
+      {entry.description && (
+        <p className="text-gray-400 text-sm mb-3 line-clamp-1">{entry.description}</p>
+      )}
+
+      {/* Due date */}
+      {entry.dueDate && (
+        <div className={`flex items-center gap-1.5 text-xs mb-3 ${isOverdue ? "text-red-400" : "text-gray-500"}`}>
+          <Calendar size={11} />
+          {isOverdue ? "Overdue · " : "Due: "}{entry.dueDate}
+        </div>
+      )}
+
+      {/* Repayment progress (only for unsettled) */}
+      {!entry.settled && Number(entry.repaidAmount || 0) > 0 && (
+        <div className="mb-3">
+          <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+            <span>{fmtINR(entry.repaidAmount || 0)} repaid</span>
+            <span>{fmtINR(remaining)} remaining</span>
+          </div>
+          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${pct}%`,
+                background: isLent
+                  ? "linear-gradient(90deg, #10b981, #34d399)"
+                  : "linear-gradient(90deg, #ef4444, #f87171)",
+              }}
+            />
+          </div>
+          <p className="text-xs text-gray-600 mt-1">{pct}% repaid</p>
+        </div>
+      )}
+
+      {/* Actions */}
+      {!entry.settled && (
+        <div className="flex gap-2 flex-wrap pt-2 border-t border-white/5">
+          <button
+            onClick={() => onPartialRepayment(entry)}
+            className="text-xs flex items-center gap-1 px-3 py-1.5 rounded-lg glass-card text-gray-400 hover:text-white transition-all"
+          >
+            <Plus size={11} /> Partial repayment
+          </button>
+          <button
+            onClick={() => onSettle(entry)}
+            className="text-xs flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all"
+            style={{ background: "rgba(16,185,129,0.15)", color: "#34d399", border: "1px solid rgba(16,185,129,0.3)" }}
+          >
+            <CheckCircle size={11} /> Settle fully
+          </button>
+          <div className="flex gap-1 ml-auto">
+            <button onClick={() => onEdit(entry)}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+              <Edit2 size={13} />
+            </button>
+            <button onClick={() => onDelete(entry.id)}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all">
+              <Trash2 size={13} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {entry.settled && (
+        <div className="flex justify-end gap-1 pt-2 border-t border-white/5">
+          <button onClick={() => onEdit(entry)}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+            <Edit2 size={13} />
+          </button>
+          <button onClick={() => onDelete(entry.id)}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all">
+            <Trash2 size={13} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 const Finance = () => {
   const { user }   = useAuth();
@@ -280,6 +420,7 @@ const Finance = () => {
   const [savingsGoals, setSavingsGoals] = useState([]);
   const [monthSummaries, setMonthSummaries] = useState([]);
   const [billSplits,   setBillSplits]   = useState([]);
+  const [lendings,     setLendings]     = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [search,       setSearch]       = useState("");
   const [typeFilter,   setTypeFilter]   = useState("all");
@@ -293,6 +434,12 @@ const Finance = () => {
   const [editSavings,     setEditSavings]     = useState(null);
   const [showSplitForm,   setShowSplitForm]   = useState(false);
   const [editSplit,       setEditSplit]       = useState(null);
+  const [showLendingForm, setShowLendingForm] = useState(false);
+  const [editLending,     setEditLending]     = useState(null);
+  const [showRepayModal,  setShowRepayModal]  = useState(false);
+  const [repayEntry,      setRepayEntry]      = useState(null);
+  const [repayAmount,     setRepayAmount]     = useState("");
+  const [lendFilter,      setLendFilter]      = useState("all");
 
   // Forms
   const emptyTx = { type:"expense", amount:"", category:"Food & Dining", description:"", date:new Date().toISOString().slice(0,10) };
@@ -300,11 +447,23 @@ const Finance = () => {
   const [budgetForm,  setBudgetForm]  = useState({ category:"Food & Dining", limit:"", month:new Date().toISOString().slice(0,7) });
   const [savingsForm, setSavingsForm] = useState({ title:"", target:"", saved:"", deadline:"", icon:"🎯" });
 
+  const emptyLending = {
+    type: "lent",
+    personName: "",
+    amount: "",
+    repaidAmount: 0,
+    description: "",
+    date: new Date().toISOString().slice(0, 10),
+    dueDate: "",
+    settled: false,
+  };
+  const [lendingForm, setLendingForm] = useState(emptyLending);
+
   // Bill split form
   const emptySplit = {
     title: "", totalAmount: "", category: "Food & Dining",
     date: new Date().toISOString().slice(0,10),
-    splitType: "equal", // equal | custom
+    splitType: "equal",
     people: [{ name: "", share: "", paid: false }],
   };
   const [splitForm, setSplitForm] = useState(emptySplit);
@@ -312,15 +471,16 @@ const Finance = () => {
   useEffect(() => {
     if (!user) return;
     let count = 0;
-    const done = () => { count++; if (count >= 5) setLoading(false); };
+    const done = () => { count++; if (count >= 6) setLoading(false); };
 
     const u1 = getTransactionsRealtime(user.uid, (d) => { setTransactions(d); done(); });
     const u2 = getBudgetsRealtime(user.uid, (d) => { setBudgets(d); done(); });
     const u3 = getSavingsGoalsRealtime(user.uid, (d) => { setSavingsGoals(d); done(); });
     const u4 = getMonthSummariesRealtime(user.uid, (d) => { setMonthSummaries(d); done(); });
     const u5 = getBillSplitsRealtime(user.uid, (d) => { setBillSplits(d); done(); });
+    const u6 = getLendingsRealtime(user.uid, (d) => { setLendings(d); done(); });
 
-    return () => { u1(); u2(); u3(); u4(); u5(); };
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); };
   }, [user]);
 
   // Sync forms with edit targets
@@ -342,10 +502,8 @@ const Finance = () => {
   useEffect(() => {
     if (editSplit) {
       setSplitForm({
-        title: editSplit.title,
-        totalAmount: editSplit.totalAmount,
-        category: editSplit.category,
-        date: editSplit.date,
+        title: editSplit.title, totalAmount: editSplit.totalAmount,
+        category: editSplit.category, date: editSplit.date,
         splitType: editSplit.splitType || "equal",
         people: editSplit.people || [{ name: "", share: "", paid: false }],
       });
@@ -354,15 +512,32 @@ const Finance = () => {
     }
   }, [editSplit]);
 
+  useEffect(() => {
+    if (editLending) {
+      setLendingForm({
+        type: editLending.type,
+        personName: editLending.personName,
+        amount: editLending.amount,
+        repaidAmount: editLending.repaidAmount || 0,
+        description: editLending.description || "",
+        date: editLending.date,
+        dueDate: editLending.dueDate || "",
+        settled: editLending.settled || false,
+      });
+    } else {
+      setLendingForm(emptyLending);
+    }
+  }, [editLending]);
+
   // ── Computed values ─────────────────────────────────────────────────────────
   const currentMonth = new Date().toISOString().slice(0, 7);
   const prevMonthStr = prevMonth(currentMonth);
+  const today        = new Date().toISOString().slice(0, 10);
 
   const thisMonthTx  = useMemo(() => transactions.filter(t => t.date?.startsWith(currentMonth)), [transactions, currentMonth]);
   const totalIncome  = useMemo(() => thisMonthTx.filter(t=>t.type==="income").reduce((s,t)=>s+Number(t.amount),0), [thisMonthTx]);
   const totalExpense = useMemo(() => thisMonthTx.filter(t=>t.type==="expense").reduce((s,t)=>s+Number(t.amount),0), [thisMonthTx]);
 
-  // Carryover: net balance from last saved month summary
   const prevSummary = useMemo(() =>
     monthSummaries.find(s => s.month === prevMonthStr),
     [monthSummaries, prevMonthStr]
@@ -377,6 +552,30 @@ const Finance = () => {
   const balance      = totalIncome - totalExpense;
   const netWithCarry = balance + carryover;
   const savingsTotal = useMemo(() => savingsGoals.reduce((s,g)=>s+Number(g.saved||0),0), [savingsGoals]);
+
+  // Lendings computed
+  const totalLent = useMemo(() =>
+    lendings.filter(l => l.type === "lent" && !l.settled)
+      .reduce((s, l) => s + Number(l.amount) - Number(l.repaidAmount || 0), 0),
+    [lendings]
+  );
+  const totalBorrowed = useMemo(() =>
+    lendings.filter(l => l.type === "borrowed" && !l.settled)
+      .reduce((s, l) => s + Number(l.amount) - Number(l.repaidAmount || 0), 0),
+    [lendings]
+  );
+  const lendingNet = totalLent - totalBorrowed;
+
+  const filteredLendings = useMemo(() => {
+    return lendings
+      .filter(l => {
+        if (lendFilter === "lent")     return l.type === "lent"    && !l.settled;
+        if (lendFilter === "borrowed") return l.type === "borrowed" && !l.settled;
+        if (lendFilter === "settled")  return l.settled;
+        return true;
+      })
+      .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  }, [lendings, lendFilter]);
 
   const areaData = useMemo(() => {
     const months = Array.from({length:6}, (_,i) => {
@@ -419,37 +618,29 @@ const Finance = () => {
   // ── Generate month summary ─────────────────────────────────────────────────
   const generateMonthlySummary = useCallback(async (targetMonth = prevMonthStr) => {
     const existing = monthSummaries.find(s => s.month === targetMonth);
-
     const monthTx = transactions.filter(t => t.date?.startsWith(targetMonth));
     const income  = monthTx.filter(t=>t.type==="income").reduce((s,t)=>s+Number(t.amount),0);
     const expense = monthTx.filter(t=>t.type==="expense").reduce((s,t)=>s+Number(t.amount),0);
 
-    // Top categories
     const catMap = {};
     monthTx.filter(t=>t.type==="expense").forEach(t=>{
       catMap[t.category]=(catMap[t.category]||0)+Number(t.amount);
     });
     const topCategories = Object.entries(catMap)
-      .sort((a,b)=>b[1]-a[1])
-      .slice(0,5)
+      .sort((a,b)=>b[1]-a[1]).slice(0,5)
       .map(([category,amount])=>({category,amount}));
 
-    // Get carryover from month before targetMonth
     const prevM = prevMonth(targetMonth);
-    const prevS  = monthSummaries.find(s => s.month === prevM);
+    const prevS = monthSummaries.find(s => s.month === prevM);
     let carryoverAmt = 0;
     if (prevS) {
       carryoverAmt = Number(prevS.totalIncome||0) - Number(prevS.totalExpense||0) + Number(prevS.carryoverFromPrev||0);
     }
 
     const summaryData = {
-      month: targetMonth,
-      totalIncome: income,
-      totalExpense: expense,
-      netBalance: income - expense,
-      carryoverFromPrev: carryoverAmt,
-      topCategories,
-      txCount: monthTx.length,
+      month: targetMonth, totalIncome: income, totalExpense: expense,
+      netBalance: income - expense, carryoverFromPrev: carryoverAmt,
+      topCategories, txCount: monthTx.length,
     };
 
     try {
@@ -499,7 +690,7 @@ const Finance = () => {
     } catch{toast.error("Something went wrong!");}
   };
 
-  // ── Split helpers ──────────────────────────────────────────────────────────
+  // Split helpers
   const recalcEqualShares = (people, total) => {
     const amt = Number(total) || 0;
     const share = people.length > 0 ? (amt / people.length).toFixed(2) : 0;
@@ -530,17 +721,13 @@ const Finance = () => {
 
   const handleSplitTypeChange = (type) => {
     let people = splitForm.people;
-    if (type === "equal") {
-      people = recalcEqualShares(splitForm.people, splitForm.totalAmount);
-    }
+    if (type === "equal") people = recalcEqualShares(splitForm.people, splitForm.totalAmount);
     setSplitForm(f => ({ ...f, splitType: type, people }));
   };
 
   const handleTotalAmountChange = (val) => {
     let people = splitForm.people;
-    if (splitForm.splitType === "equal") {
-      people = recalcEqualShares(splitForm.people, val);
-    }
+    if (splitForm.splitType === "equal") people = recalcEqualShares(splitForm.people, val);
     setSplitForm(f => ({ ...f, totalAmount: val, people }));
   };
 
@@ -549,7 +736,6 @@ const Finance = () => {
     if (!splitForm.title.trim()) { toast.error("Enter a title"); return; }
     if (!splitForm.totalAmount || isNaN(splitForm.totalAmount)) { toast.error("Enter a valid amount"); return; }
     if (splitForm.people.some(p => !p.name.trim())) { toast.error("All people need names"); return; }
-
     try {
       if (editSplit) {
         await updateBillSplit(editSplit.id, splitForm);
@@ -558,8 +744,7 @@ const Finance = () => {
         await addBillSplit(user.uid, splitForm);
         toast.success("Bill split created! ✂️");
       }
-      setShowSplitForm(false);
-      setEditSplit(null);
+      setShowSplitForm(false); setEditSplit(null);
     } catch { toast.error("Something went wrong!"); }
   };
 
@@ -569,18 +754,70 @@ const Finance = () => {
     try {
       await updateBillSplit(split.id, { ...split, people: updated });
       const name = updated[personIdx].name;
-      const status = updated[personIdx].paid ? "paid" : "unpaid";
-      toast.success(`${name} marked as ${status}`);
+      toast.success(`${name} marked as ${updated[personIdx].paid ? "paid" : "unpaid"}`);
     } catch { toast.error("Failed to update"); }
   };
 
+  // Lending handlers
+  const handleLendingSubmit = async (e) => {
+    e.preventDefault();
+    if (!lendingForm.personName.trim()) { toast.error("Enter a person name"); return; }
+    if (!lendingForm.amount || isNaN(lendingForm.amount)) { toast.error("Enter a valid amount"); return; }
+    try {
+      if (editLending) {
+        await updateLending(editLending.id, lendingForm);
+        toast.success("Entry updated!");
+      } else {
+        await addLending(user.uid, lendingForm);
+        toast.success(lendingForm.type === "lent" ? "Lending recorded!" : "Borrowing recorded!");
+      }
+      setShowLendingForm(false); setEditLending(null);
+    } catch { toast.error("Something went wrong!"); }
+  };
+
+  const handleSettleFull = async (entry) => {
+    try {
+      await updateLending(entry.id, {
+        repaidAmount: Number(entry.amount),
+        settled: true,
+      });
+      toast.success("Marked as fully settled! 🎉");
+    } catch { toast.error("Failed to settle"); }
+  };
+
+  const handlePartialRepayment = (entry) => {
+    setRepayEntry(entry);
+    setRepayAmount("");
+    setShowRepayModal(true);
+  };
+
+  const handleRepaySubmit = async () => {
+    if (!repayAmount || isNaN(repayAmount) || Number(repayAmount) <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    const newRepaid = Math.min(
+      Number(repayEntry.repaidAmount || 0) + Number(repayAmount),
+      Number(repayEntry.amount)
+    );
+    const settled = newRepaid >= Number(repayEntry.amount);
+    try {
+      await updateLending(repayEntry.id, { repaidAmount: newRepaid, settled });
+      toast.success(settled ? "Fully settled! 🎉" : `₹${Number(repayAmount).toLocaleString("en-IN")} recorded`);
+      setShowRepayModal(false);
+      setRepayEntry(null);
+      setRepayAmount("");
+    } catch { toast.error("Failed to record repayment"); }
+  };
+
   const TABS = [
-    {id:TAB.overview,      label:"Overview",      icon:PieChart   },
-    {id:TAB.transactions,  label:"Transactions",  icon:CreditCard },
-    {id:TAB.budget,        label:"Budgets",       icon:Target     },
-    {id:TAB.savings,       label:"Savings",       icon:Wallet     },
-    {id:TAB.splits,        label:"Bill Splits",   icon:Scissors   },
-    {id:TAB.history,       label:"History",       icon:History    },
+    {id:TAB.overview,      label:"Overview",              icon:PieChart    },
+    {id:TAB.transactions,  label:"Transactions",          icon:CreditCard  },
+    {id:TAB.budget,        label:"Budgets",               icon:Target      },
+    {id:TAB.savings,       label:"Savings",               icon:Wallet      },
+    {id:TAB.splits,        label:"Bill Splits",           icon:Scissors    },
+    {id:TAB.lendings,      label:"Lendings & Borrowings", icon:HandCoins   },
+    {id:TAB.history,       label:"History",               icon:History     },
   ];
 
   const SAVING_ICONS=["🎯","🏠","✈️","🚗","💍","📱","💻","🎓","🏋️","💊"];
@@ -635,13 +872,11 @@ const Finance = () => {
 
         {/* Carryover alert */}
         {carryover !== 0 && (
-          <div
-            className={`mb-4 p-3 rounded-xl flex items-center gap-3 animate-fade-in ${
-              carryover >= 0
-                ? "bg-green-500/8 border border-green-500/20"
-                : "bg-orange-500/8 border border-orange-500/20"
-            }`}
-          >
+          <div className={`mb-4 p-3 rounded-xl flex items-center gap-3 animate-fade-in ${
+            carryover >= 0
+              ? "bg-green-500/8 border border-green-500/20"
+              : "bg-orange-500/8 border border-orange-500/20"
+          }`}>
             <ArrowUpRight size={14} className={carryover >= 0 ? "text-green-400" : "text-orange-400"} />
             <p className="text-sm" style={{ color: carryover >= 0 ? "#34d399" : "#fb923c" }}>
               {carryover >= 0 ? "+" : ""}{fmtINR(carryover)} carried over from {monthLabel(prevMonthStr)}
@@ -738,6 +973,39 @@ const Finance = () => {
               </div>
             </div>
 
+            {/* Lendings quick summary on overview */}
+            {(totalLent > 0 || totalBorrowed > 0) && (
+              <div className="glass-card p-5 hover-lift">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-display font-semibold text-white flex items-center gap-2">
+                    <HandCoins size={16} style={{color:"var(--p400)"}} /> Lendings & Borrowings
+                  </h3>
+                  <button onClick={() => setTab(TAB.lendings)}
+                    className="text-xs hover:opacity-70 transition-opacity"
+                    style={{color:"var(--p400)"}}>
+                    View all →
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+                    <p className="text-xs text-gray-400 mb-1">They owe me</p>
+                    <p className="text-green-400 font-bold">{fmtINR(totalLent)}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                    <p className="text-xs text-gray-400 mb-1">I owe</p>
+                    <p className="text-red-400 font-bold">{fmtINR(totalBorrowed)}</p>
+                  </div>
+                  <div className={`p-3 rounded-xl border ${lendingNet >= 0 ? "bg-primary-500/10 border-primary-500/20" : "bg-red-500/10 border-red-500/20"}`}>
+                    <p className="text-xs text-gray-400 mb-1">Net</p>
+                    <p className={`font-bold ${lendingNet >= 0 ? "" : "text-red-400"}`}
+                      style={lendingNet >= 0 ? {color:"var(--p400)"} : {}}>
+                      {lendingNet >= 0 ? "+" : ""}{fmtINR(lendingNet)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Generate Summary CTA */}
             <div className="glass-card p-5 hover-lift flex items-center justify-between gap-4">
               <div>
@@ -749,10 +1017,7 @@ const Finance = () => {
                   Generate a snapshot of {monthLabel(prevMonthStr)} to track carryover balance.
                 </p>
               </div>
-              <button
-                onClick={() => generateMonthlySummary(prevMonthStr)}
-                className="btn-primary shrink-0 text-sm"
-              >
+              <button onClick={() => generateMonthlySummary(prevMonthStr)} className="btn-primary shrink-0 text-sm">
                 <Plus size={14}/> Generate
               </button>
             </div>
@@ -919,9 +1184,7 @@ const Finance = () => {
         {tab===TAB.splits && (
           <div className="space-y-4 animate-fade-in">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm">{billSplits.length} split{billSplits.length !== 1 ? "s" : ""} total</p>
-              </div>
+              <p className="text-gray-400 text-sm">{billSplits.length} split{billSplits.length !== 1 ? "s" : ""} total</p>
               <button onClick={()=>{setEditSplit(null);setShowSplitForm(true);}} className="btn-primary">
                 <Scissors size={16}/> Split Bill
               </button>
@@ -931,7 +1194,7 @@ const Finance = () => {
               <div className="glass-card">
                 <EmptyState type="finance"
                   title="No bill splits yet"
-                  description="Split expenses with friends, roommates or colleagues. Track who's paid."
+                  description="Split expenses with friends, roommates or colleagues."
                   action={()=>setShowSplitForm(true)}
                   actionLabel="Create Split"/>
               </div>
@@ -944,6 +1207,94 @@ const Finance = () => {
                     onEdit={(s) => { setEditSplit(s); setShowSplitForm(true); }}
                     onDelete={(id) => deleteBillSplit(id).then(() => toast.success("Split deleted!"))}
                     onTogglePerson={handleTogglePerson}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── LENDINGS & BORROWINGS ── */}
+        {tab===TAB.lendings && (
+          <div className="space-y-4 animate-fade-in">
+
+            {/* Summary stats */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="glass-card p-4 hover-lift">
+                <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                  <ArrowUpRight size={12} className="text-green-400"/> They owe me
+                </p>
+                <p className="text-xl font-display font-bold text-green-400">{fmtINR(totalLent)}</p>
+              </div>
+              <div className="glass-card p-4 hover-lift">
+                <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                  <ArrowDownRight size={12} className="text-red-400"/> I owe
+                </p>
+                <p className="text-xl font-display font-bold text-red-400">{fmtINR(totalBorrowed)}</p>
+              </div>
+              <div className={`glass-card p-4 hover-lift`}>
+                <p className="text-xs text-gray-400 mb-1">Net balance</p>
+                <p className={`text-xl font-display font-bold ${lendingNet >= 0 ? "" : "text-red-400"}`}
+                  style={lendingNet >= 0 ? { color: "var(--p400)" } : {}}>
+                  {lendingNet >= 0 ? "+" : ""}{fmtINR(lendingNet)}
+                </p>
+              </div>
+            </div>
+
+            {/* Overdue alert */}
+            {lendings.filter(l => l.dueDate && l.dueDate < today && !l.settled).length > 0 && (
+              <div className="p-3 rounded-xl flex items-center gap-3 animate-fade-in bg-red-500/8 border border-red-500/20">
+                <AlertCircle size={14} className="text-red-400 shrink-0"/>
+                <p className="text-red-300 text-sm">
+                  {lendings.filter(l => l.dueDate && l.dueDate < today && !l.settled).length} entr{lendings.filter(l => l.dueDate && l.dueDate < today && !l.settled).length > 1 ? "ies are" : "y is"} overdue!
+                </p>
+              </div>
+            )}
+
+            {/* Filter row + Add button */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex gap-2 flex-wrap">
+                {[
+                  { id: "all",      label: "All"          },
+                  { id: "lent",     label: "They owe me"  },
+                  { id: "borrowed", label: "I owe"        },
+                  { id: "settled",  label: "Settled"      },
+                ].map(f => (
+                  <button key={f.id} onClick={() => setLendFilter(f.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                      lendFilter === f.id ? "nav-active" : "glass-card text-gray-400 hover:text-white"
+                    }`}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => { setEditLending(null); setShowLendingForm(true); }} className="btn-primary text-sm">
+                <Plus size={15}/> Add Entry
+              </button>
+            </div>
+
+            {/* List */}
+            {filteredLendings.length === 0 ? (
+              <div className="glass-card">
+                <EmptyState
+                  type="finance"
+                  title={lendFilter === "settled" ? "No settled entries yet" : "No entries"}
+                  description="Track money you lent to others or borrowed from someone."
+                  action={() => setShowLendingForm(true)}
+                  actionLabel="Add Entry"
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {filteredLendings.map((entry, i) => (
+                  <LendingCard
+                    key={entry.id}
+                    entry={entry}
+                    index={i}
+                    onEdit={(e) => { setEditLending(e); setShowLendingForm(true); }}
+                    onDelete={(id) => deleteLending(id).then(() => toast.success("Entry deleted!"))}
+                    onSettle={handleSettleFull}
+                    onPartialRepayment={handlePartialRepayment}
                   />
                 ))}
               </div>
@@ -986,7 +1337,6 @@ const Finance = () => {
               </div>
             )}
 
-            {/* Generate for any past month */}
             <div className="glass-card p-5">
               <h4 className="text-white font-medium mb-3 flex items-center gap-2">
                 <Calendar size={14} style={{color:"var(--p400)"}}/> Generate for a specific month
@@ -1093,7 +1443,6 @@ const Finance = () => {
             <select value={splitForm.category} onChange={e=>setSplitForm(f=>({...f,category:e.target.value}))} className="input-glass">
               {EXPENSE_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
 
-          {/* Split type */}
           <div>
             <label className="text-xs text-gray-400 mb-2 block">Split Type</label>
             <div className="grid grid-cols-2 gap-2">
@@ -1106,7 +1455,6 @@ const Finance = () => {
             </div>
           </div>
 
-          {/* People */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs text-gray-400">People ({splitForm.people.length})</label>
@@ -1117,24 +1465,14 @@ const Finance = () => {
             <div className="space-y-2">
               {splitForm.people.map((person, idx) => (
                 <div key={idx} className="flex gap-2 items-center p-2 rounded-xl bg-white/5">
-                  <input
-                    value={person.name}
-                    onChange={e=>handleSplitPersonChange(idx,"name",e.target.value)}
-                    placeholder={`Person ${idx+1}`}
-                    className="input-glass flex-1 text-sm py-1.5"
-                  />
-                  <input
-                    type="number"
-                    value={person.share}
+                  <input value={person.name} onChange={e=>handleSplitPersonChange(idx,"name",e.target.value)}
+                    placeholder={`Person ${idx+1}`} className="input-glass flex-1 text-sm py-1.5"/>
+                  <input type="number" value={person.share}
                     onChange={e=>handleSplitPersonChange(idx,"share",e.target.value)}
-                    placeholder="₹0"
-                    disabled={splitForm.splitType==="equal"}
-                    className={`input-glass w-24 text-sm py-1.5 ${splitForm.splitType==="equal"?"opacity-60":""}`}
-                  />
-                  <button type="button"
-                    onClick={()=>{handleSplitPersonChange(idx,"paid",!person.paid);}}
-                    className={`shrink-0 transition-all ${person.paid?"text-green-400":"text-gray-600 hover:text-green-400"}`}
-                    title={person.paid?"Mark unpaid":"Mark paid"}>
+                    placeholder="₹0" disabled={splitForm.splitType==="equal"}
+                    className={`input-glass w-24 text-sm py-1.5 ${splitForm.splitType==="equal"?"opacity-60":""}`}/>
+                  <button type="button" onClick={()=>handleSplitPersonChange(idx,"paid",!person.paid)}
+                    className={`shrink-0 transition-all ${person.paid?"text-green-400":"text-gray-600 hover:text-green-400"}`}>
                     {person.paid?<CheckCircle size={18}/>:<Circle size={18}/>}
                   </button>
                   {splitForm.people.length > 1 && (
@@ -1157,6 +1495,157 @@ const Finance = () => {
             <button type="submit" className="btn-primary flex-1 justify-center">{editSplit?"Update":"Create Split"}</button>
           </div>
         </form>
+      </Modal>
+
+      {/* ── Lending / Borrowing Modal ── */}
+      <Modal isOpen={showLendingForm} onClose={()=>{setShowLendingForm(false);setEditLending(null);}} title={editLending?"Edit Entry":"Add Lending / Borrowing"} size="sm">
+        <form onSubmit={handleLendingSubmit} className="space-y-4">
+
+          {/* Type selector */}
+          <div>
+            <label className="text-xs text-gray-400 mb-2 block">Type</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button"
+                onClick={() => setLendingForm(f => ({ ...f, type: "lent" }))}
+                className={`py-3 rounded-xl text-sm font-medium transition-all flex flex-col items-center gap-1 ${
+                  lendingForm.type === "lent"
+                    ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                    : "glass-card text-gray-400 hover:text-white"
+                }`}
+              >
+                <ArrowUpRight size={18}/>
+                I lent money
+                <span className="text-xs opacity-70">They owe me</span>
+              </button>
+              <button type="button"
+                onClick={() => setLendingForm(f => ({ ...f, type: "borrowed" }))}
+                className={`py-3 rounded-xl text-sm font-medium transition-all flex flex-col items-center gap-1 ${
+                  lendingForm.type === "borrowed"
+                    ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                    : "glass-card text-gray-400 hover:text-white"
+                }`}
+              >
+                <ArrowDownRight size={18}/>
+                I borrowed money
+                <span className="text-xs opacity-70">I owe them</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">
+              {lendingForm.type === "lent" ? "Person who borrowed" : "Person you borrowed from"} *
+            </label>
+            <input
+              value={lendingForm.personName}
+              onChange={e => setLendingForm(f => ({ ...f, personName: e.target.value }))}
+              placeholder="Name..."
+              className="input-glass"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Amount (₹) *</label>
+            <input
+              type="number"
+              value={lendingForm.amount}
+              onChange={e => setLendingForm(f => ({ ...f, amount: e.target.value }))}
+              placeholder="0.00"
+              className="input-glass"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Date *</label>
+              <input
+                type="date"
+                value={lendingForm.date}
+                onChange={e => setLendingForm(f => ({ ...f, date: e.target.value }))}
+                className="input-glass"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Due Date (optional)</label>
+              <input
+                type="date"
+                value={lendingForm.dueDate}
+                onChange={e => setLendingForm(f => ({ ...f, dueDate: e.target.value }))}
+                className="input-glass"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Description (optional)</label>
+            <input
+              value={lendingForm.description}
+              onChange={e => setLendingForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="e.g. Dinner, rent advance, travel..."
+              className="input-glass"
+            />
+          </div>
+
+          {editLending && (
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="settled-check"
+                checked={lendingForm.settled}
+                onChange={e => setLendingForm(f => ({ ...f, settled: e.target.checked }))}
+                className="rounded"
+              />
+              <label htmlFor="settled-check" className="text-sm text-gray-400 flex items-center gap-1">
+                <CheckCircle size={12} className="text-green-400"/> Mark as settled
+              </label>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={() => { setShowLendingForm(false); setEditLending(null); }} className="btn-secondary flex-1 justify-center">Cancel</button>
+            <button type="submit" className="btn-primary flex-1 justify-center">
+              {editLending ? "Update" : lendingForm.type === "lent" ? "Record Lending" : "Record Borrowing"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Partial Repayment Modal ── */}
+      <Modal isOpen={showRepayModal} onClose={() => { setShowRepayModal(false); setRepayEntry(null); }} title="Record Repayment" size="sm">
+        {repayEntry && (
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-white/5">
+              <p className="text-white font-medium">{repayEntry.personName}</p>
+              <p className="text-gray-400 text-sm mt-0.5">
+                Total: {fmtINR(repayEntry.amount)} · Already repaid: {fmtINR(repayEntry.repaidAmount || 0)}
+              </p>
+              <p className="text-xs mt-1" style={{ color: "var(--p400)" }}>
+                Remaining: {fmtINR(Number(repayEntry.amount) - Number(repayEntry.repaidAmount || 0))}
+              </p>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Repayment Amount (₹) *</label>
+              <input
+                type="number"
+                value={repayAmount}
+                onChange={e => setRepayAmount(e.target.value)}
+                placeholder="0.00"
+                className="input-glass"
+                autoFocus
+                max={Number(repayEntry.amount) - Number(repayEntry.repaidAmount || 0)}
+              />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => { setShowRepayModal(false); setRepayEntry(null); }} className="btn-secondary flex-1 justify-center">Cancel</button>
+              <button onClick={handleRepaySubmit} className="btn-primary flex-1 justify-center">
+                <CheckCircle size={14}/> Record
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

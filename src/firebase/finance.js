@@ -100,3 +100,29 @@ export const getBillSplitsRealtime = (userId, callback) => {
     callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
   );
 };
+
+// ── Lendings & Borrowings ─────────────────────────────────────────────────────
+// type: "lent"     → you gave money → they owe you
+// type: "borrowed" → you received money → you owe them
+
+export const addLending = (userId, data) =>
+  addDoc(collection(db, "lendings"), {
+    ...data,
+    userId,
+    repaidAmount: 0,
+    settled: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+export const updateLending = (id, data) =>
+  updateDoc(doc(db, "lendings", id), { ...data, updatedAt: serverTimestamp() });
+
+export const deleteLending = (id) => deleteDoc(doc(db, "lendings", id));
+
+export const getLendingsRealtime = (userId, callback) => {
+  const q = query(collection(db, "lendings"), where("userId", "==", userId));
+  return onSnapshot(q, (snap) =>
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+  );
+};
