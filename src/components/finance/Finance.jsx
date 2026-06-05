@@ -769,16 +769,32 @@ const Finance = () => {
     e.preventDefault();
     if (!lendingForm.personName.trim()) { toast.error("Enter a person name"); return; }
     if (!lendingForm.amount || isNaN(lendingForm.amount)) { toast.error("Enter a valid amount"); return; }
+
+    // Clean data — remove undefined fields before sending to Firestore
+    const cleanForm = {
+      type: lendingForm.type || "lent",
+      personName: lendingForm.personName.trim(),
+      amount: Number(lendingForm.amount),
+      repaidAmount: Number(lendingForm.repaidAmount) || 0,
+      description: lendingForm.description || "",
+      date: lendingForm.date || new Date().toISOString().slice(0, 10),
+      dueDate: lendingForm.dueDate || "",
+      settled: lendingForm.settled || false,
+    };
+
     try {
       if (editLending) {
-        await updateLending(editLending.id, lendingForm);
+        await updateLending(editLending.id, cleanForm);
         toast.success("Entry updated!");
       } else {
-        await addLending(user.uid, lendingForm);
-        toast.success(lendingForm.type === "lent" ? "Lending recorded!" : "Borrowing recorded!");
+        await addLending(user.uid, cleanForm);
+        toast.success(cleanForm.type === "lent" ? "Lending recorded!" : "Borrowing recorded!");
       }
       setShowLendingForm(false); setEditLending(null);
-    } catch { toast.error("Something went wrong!"); }
+    } catch (err) {
+      console.error("Lending error:", err);
+      toast.error(err?.message || "Something went wrong!");
+    }
   };
 
   const handleSettleFull = async (entry) => {
