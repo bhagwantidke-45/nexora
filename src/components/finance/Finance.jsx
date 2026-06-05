@@ -1,10 +1,11 @@
+// Finance.jsx — Monthly summaries, balance carryover, bill splitting, lendings & borrowings, theme-aware
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   DollarSign, Plus, Trash2, Edit2, TrendingUp, TrendingDown,
   PieChart, Target, CreditCard, Search, Wallet,
   ArrowUpRight, ArrowDownRight, Calendar, Users,
   CheckCircle, Circle, ChevronDown, ChevronRight,
-  FileText, AlertCircle, History, Scissors, HandCoins,
+  FileText, AlertCircle, History, Scissors, Landmark,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart as RPieChart, Pie, Cell,
@@ -470,17 +471,22 @@ const Finance = () => {
 
   useEffect(() => {
     if (!user) return;
-    let count = 0;
-    const done = () => { count++; if (count >= 6) setLoading(false); };
 
-    const u1 = getTransactionsRealtime(user.uid, (d) => { setTransactions(d); done(); });
-    const u2 = getBudgetsRealtime(user.uid, (d) => { setBudgets(d); done(); });
-    const u3 = getSavingsGoalsRealtime(user.uid, (d) => { setSavingsGoals(d); done(); });
-    const u4 = getMonthSummariesRealtime(user.uid, (d) => { setMonthSummaries(d); done(); });
-    const u5 = getBillSplitsRealtime(user.uid, (d) => { setBillSplits(d); done(); });
-    const u6 = getLendingsRealtime(user.uid, (d) => { setLendings(d); done(); });
+    // Show page as soon as transactions (primary data) arrive — rest loads in background
+    let firstLoad = false;
+    const showPage = () => { if (!firstLoad) { firstLoad = true; setLoading(false); } };
 
-    return () => { u1(); u2(); u3(); u4(); u5(); u6(); };
+    // Failsafe: show page after 1.5s no matter what
+    const timeout = setTimeout(showPage, 1500);
+
+    const u1 = getTransactionsRealtime(user.uid, (d) => { setTransactions(d); showPage(); });
+    const u2 = getBudgetsRealtime(user.uid, (d) => { setBudgets(d); showPage(); });
+    const u3 = getSavingsGoalsRealtime(user.uid, (d) => { setSavingsGoals(d); });
+    const u4 = getMonthSummariesRealtime(user.uid, (d) => { setMonthSummaries(d); });
+    const u5 = getBillSplitsRealtime(user.uid, (d) => { setBillSplits(d); });
+    const u6 = getLendingsRealtime(user.uid, (d) => { setLendings(d); });
+
+    return () => { clearTimeout(timeout); u1(); u2(); u3(); u4(); u5(); u6(); };
   }, [user]);
 
   // Sync forms with edit targets
@@ -816,7 +822,7 @@ const Finance = () => {
     {id:TAB.budget,        label:"Budgets",               icon:Target      },
     {id:TAB.savings,       label:"Savings",               icon:Wallet      },
     {id:TAB.splits,        label:"Bill Splits",           icon:Scissors    },
-    {id:TAB.lendings,      label:"Lendings & Borrowings", icon:HandCoins   },
+    {id:TAB.lendings,      label:"Lendings & Borrowings", icon:Landmark   },
     {id:TAB.history,       label:"History",               icon:History     },
   ];
 
@@ -826,11 +832,35 @@ const Finance = () => {
     <div className={`min-h-screen ${isDark?"bg-mesh":"bg-mesh-light"}`}>
       <Navbar />
       <div className="pt-20 pb-10 px-4 max-w-7xl mx-auto">
-        <div className="h-8 w-48 skeleton rounded-xl mb-6"/>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {Array.from({length:4}).map((_,i)=><SkeletonStat key={i}/>)}
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="h-8 w-36 skeleton rounded-xl mb-2"/>
+            <div className="h-4 w-48 skeleton rounded-lg"/>
+          </div>
+          <div className="h-9 w-36 skeleton rounded-xl"/>
         </div>
-        <SkeletonCard rows={5}/>
+        {/* Stat cards skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {Array.from({length:4}).map((_,i)=>(
+            <div key={i} className="glass-card p-5" style={{animationDelay:`${i*60}ms`}}>
+              <div className="w-10 h-10 skeleton rounded-xl mb-3"/>
+              <div className="h-7 w-24 skeleton rounded-lg mb-2"/>
+              <div className="h-4 w-20 skeleton rounded-lg"/>
+            </div>
+          ))}
+        </div>
+        {/* Tabs skeleton */}
+        <div className="flex gap-2 mb-6">
+          {Array.from({length:5}).map((_,i)=>(
+            <div key={i} className="h-9 w-24 skeleton rounded-xl"/>
+          ))}
+        </div>
+        {/* Content skeleton */}
+        <div className="glass-card p-6">
+          <div className="h-6 w-48 skeleton rounded-lg mb-4"/>
+          <div className="h-64 skeleton rounded-xl"/>
+        </div>
       </div>
     </div>
   );
@@ -978,7 +1008,7 @@ const Finance = () => {
               <div className="glass-card p-5 hover-lift">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-display font-semibold text-white flex items-center gap-2">
-                    <HandCoins size={16} style={{color:"var(--p400)"}} /> Lendings & Borrowings
+                    <Landmark size={16} style={{color:"var(--p400)"}} /> Lendings & Borrowings
                   </h3>
                   <button onClick={() => setTab(TAB.lendings)}
                     className="text-xs hover:opacity-70 transition-opacity"
